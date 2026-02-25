@@ -75,16 +75,32 @@
         .spec-label { font-size: 11px; color: var(--accent); text-transform: uppercase; font-weight: 800; }
         .spec-value { display: block; font-size: 18px; margin-top: 6px; font-family: 'Courier New', monospace; }
         .hazard-box { border-left: 4px solid var(--raf-red); padding: 15px; background: rgba(194, 24, 7, 0.15); font-size: 15px; color: #ffcccc; }
+        
         model-viewer { width: 100vw; height: 100vh; background-color: #1a202c; }
         #ar-button { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--raf-red); color: white; border: none; padding: 16px 32px; border-radius: 50px; font-weight: 700; cursor: pointer; z-index: 50; text-transform: uppercase; font-size: 12px; }
+        
         .hotspot { background: transparent; border: none; box-shadow: none; display: none; pointer-events: none; }
         .hotspot.visible { display: block; }
-        .hotspot-annotation { background: #fff; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #000; font-size: 12px; font-weight: bold; padding: 4px 8px; position: absolute; white-space: nowrap; pointer-events: none; }
+        .hotspot-annotation { background: #fff; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #000; font-size: 12px; font-weight: bold; padding: 4px 8px; position: absolute; white-space: nowrap; pointer-events: none; z-index: 100; transform: translate(-50%, -40px); }
         
-        .tactical-vehicle { width: 300px; height: 150px; display: none; background: transparent; border: none; overflow: visible; pointer-events: none; }
+        .tactical-vehicle { 
+            width: 200px; 
+            height: 150px; 
+            display: none; 
+            background: transparent; 
+            border: none; 
+            overflow: visible; 
+            pointer-events: none;
+            transform: translate(-50%, -50%); 
+        }
         .tactical-vehicle.visible { display: block; }
-        /* Explicit sizing added so nested models are forced to render */
-        .tactical-model { width: 100%; height: 100%; display: block; background: transparent; pointer-events: none; }
+        .tactical-model { 
+            width: 100%; 
+            height: 100%; 
+            display: block; 
+            background: transparent; 
+            pointer-events: none; 
+        }
     </style>
 </head>
 <body>
@@ -173,7 +189,6 @@
     </model-viewer>
     
     <script>
-        // Mapped Directly from ATTP PDF Documentation
         const tacticalDeployments = {
             "A400M Atlas": {
                 "engine_fire": [
@@ -231,6 +246,24 @@
                 "internal_fire": [{ type: "mprv", position: "10m 0m -10m", rotation: "0 225deg 0", label: "Crash 1: MPRV (Upwind)" }],
                 "external_fire": [{ type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }]
             },
+            "BN Defender": {
+                "engine_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "wheel_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "internal_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "external_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ]
+            },
             "DHC-1 Chipmunk": {
                 "engine_fire": [
                     { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
@@ -265,6 +298,24 @@
                 "external_fire": [
                     { type: "mprv", position: "15m 0m 15m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
                     { type: "mprv", position: "-15m 0m 15m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ]
+            },
+            "Britten Norman Islander": {
+                "engine_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "wheel_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "internal_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "external_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
                 ]
             }
         };
@@ -305,7 +356,6 @@
         let activePdfFile = "";
         let currentAssetName = "";
         
-        // Ensure PDF Filenames correctly match uploaded ATTP files
         const rawData = [
             { name: "Airbus A220", type: "civilian", file: "a220", ios_file: "A220", arff_cat: "6", fuel: "21k L", crew: "2", pax: "160", span: "35.1m", mtow: "70.9t", doors: "4 Main Doors", danger: "Engine Intake (5m).", note: "Modern efficient narrow-body.", batt: "Aft of nose wheel (L)", pdf: "A220.pdf" },
             { name: "Airbus A318", type: "civilian", file: "airbus_a318-122", ios_file: "Airbus_A318-122", arff_cat: "6", fuel: "24k L", crew: "2", pax: "132", span: "34.1m", mtow: "68t", doors: "4 Main, 2 Overwing", danger: "Engine Intake (5m), Exhaust (50m).", note: "Smallest member of the A320 family.", batt: "Aft of Nose Gear (L)", pdf: "A318.pdf" },
@@ -322,6 +372,8 @@
             { name: "B-2 Spirit", type: "military", file: "B2", ios_file: "b2", crew: "2", weapons: "Internal", span: "52.4m", mtow: "170t", danger: "Dorsal Intake.", note: "Stealth composite.", pdf : "B2.pdf" },
             { name: "B-52 Stratofortress", type: "military", file: "boeing_b-52_stratofortress", ios_file: "Boeing_B-52_Stratofortress", crew: "5", weapons: "Internal", span: "56.4m", mtow: "220t", danger: "8x Engines.", note: "Strategic heavy.", pdf : "B52.pdf" },
             { name: "BAE Hawk", type: "military", file: "Hawk", ios_file: "hawk", crew: "2", weapons: "30mm Pod", span: "9.9m", mtow: "9.1t", danger: "Intake, Seats.", note: "Advanced trainer.", pdf : "Hawk.pdf" },
+            { name: "BN Defender", type: "civilian", file: "bn_defender", ios_file: "BN_Defender", crew: "2", pax: "8", span: "14.9m", danger: "Propeller", note: "Light utility aircraft.", pdf: "ATTP-A05-Defender-V1.1.pdf" },
+            { name: "Britten Norman Islander", type: "civilian", file: "britten_norman_islander", ios_file: "BN_Islander", crew: "1", pax: "9", span: "14.9m", danger: "Propeller", note: "Light regional.", pdf: "ATTP-A09-Islander_V1.1.pdf" },
             { name: "C-130 Hercules", type: "military", file: "c130j", ios_file: "c130j", crew: "3", pax: "92", span: "40.4m", mtow: "70.3t", danger: "4x Propellers.", note: "Tactical airlifter.", pdf: "C130.pdf" },
             { name: "C-17A Globemaster", type: "military", file: "c17a", ios_file: "C17A", crew: "3", pax: "102", span: "51.7m", mtow: "265t", danger: "Reverse thrust.", note: "Tactical airlifter.", pdf: "ATTP-A06-C17-(Cargo)-V1.2.pdf" },
             { name: "C-5 Galaxy", type: "military", file: "c5_galaxy_model", ios_file: "C5_galaxy_model", crew: "7", pax: "73", span: "67.9m", mtow: "381t", danger: "Massive suction.", note: "Strategic heavy lifter.", pdf: "C5.pdf" },
@@ -351,7 +403,6 @@
         
         async function openPdfModal() {
             if (!activePdfFile) return;
-            // Pointing to the correct "TTP" directory!
             const pdfPath = `TTP/${activePdfFile}`;
             pdfModalTitle.textContent = `TTP: ${currentAssetName}`;
             pdfModal.classList.add('active');
@@ -365,7 +416,7 @@
                 pdfLoading.style.display = 'none';
             } catch (error) {
                 console.error('Error loading PDF:', error);
-                pdfLoading.textContent = 'Error loading PDF - Ensure you are running a local server.';
+                pdfLoading.textContent = 'Error loading PDF';
             }
         }
         
@@ -490,7 +541,6 @@
             
             const assetData = tacticalDeployments[currentAssetName];
             if (!assetData || !assetData[scenarioId]) {
-                console.warn("No tactical data for current asset/scenario combination.");
                 return;
             }
 
@@ -511,11 +561,11 @@
                         disable-zoom
                         disable-pan
                         interaction-prompt="none" 
-                        exposure="1.2"
+                        exposure="1.5"
                         shadow-intensity="1"
                         orientation="${vehicle.rotation}">
                     </model-viewer>
-                    <div class="hotspot-annotation" style="transform: translate(0, -30px); background: var(--raf-red); color: white;">
+                    <div class="hotspot-annotation">
                         ${vehicle.label}
                     </div>
                 `;
