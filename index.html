@@ -1,712 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>AeroViewer - ICAO TACTICAL V1.1</title>
-    <meta charset="utf-8">
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
-    <meta name="theme-color" content="#0d1117">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
-    <style>
-        :root {
-            --app-bg: #0d1117; --raf-blue: #5d7a8c; --raf-red: #c21807;
-            --icao-gold: #d4af37; --accent: #63b3ed; --glass: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --rotary-green: #48bb78; --tactical-yellow: #ffd700;
-        }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: var(--app-bg); font-family: 'Segoe UI', Roboto, sans-serif; touch-action: pan-x pan-y; }
-        
-        #pdf-modal { touch-action: auto !important; }
-        #pdf-modal * { touch-action: auto !important; }
-        
-        #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, #1a202c 0%, #0d1117 100%); z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.6s ease; }
-        .radar { position: relative; width: 280px; height: 280px; border: 2px solid rgba(99, 179, 237, 0.2); border-radius: 50%; margin-bottom: 20px;}
-        .radar::after { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(from -90deg, transparent 0deg, rgba(99, 179, 237, 0.4) 90deg, transparent 91deg); animation: sweep 4s linear infinite; }
-        @keyframes sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .commence-btn { background: transparent; color: white; border: 1px solid white; padding: 15px 45px; border-radius: 4px; letter-spacing: 4px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        .commence-btn:hover { background: white; color: black; }
-        
-        #loader-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13, 17, 23, 0.95); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 2500; backdrop-filter: blur(10px); }
-        .load-bar-container { width: 240px; height: 4px; background: rgba(255,255,255,0.05); margin-top: 15px; overflow: hidden; border-radius: 10px; }
-        .load-bar-fill { height: 100%; width: 35%; background: var(--tactical-yellow); animation: loading-slide 1.2s infinite ease-in-out; }
-        @keyframes loading-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
-        
-        #pdf-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.98); z-index: 3000; display: none; flex-direction: column; }
-        #pdf-modal.active { display: flex; }
-        .pdf-header { background: var(--app-bg); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); flex-wrap: wrap; gap: 10px; }
-        .pdf-title { color: white; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; flex: 1; min-width: 150px; }
-        .pdf-close-btn { background: var(--raf-red); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
-        .pdf-container { flex: 1; overflow: hidden; position: relative; background: #2a2a2a; touch-action: none; }
-        .pdf-scroll-container { width: 100%; height: 100%; overflow: auto; -webkit-overflow-scrolling: touch; }
-        .pdf-canvas-wrapper { display: inline-block; transform-origin: 0 0; transition: transform 0.1s ease-out; }
-        #pdf-canvas { display: block; margin: 0 auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        .pdf-controls-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); padding: 10px 15px; border-radius: 30px; display: flex; gap: 15px; align-items: center; z-index: 10; }
-        .pdf-control-btn { background: var(--glass); border: 1px solid var(--glass-border); color: white; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .pdf-control-btn:active { background: var(--accent); }
-        .pdf-page-info { color: white; font-size: 12px; font-weight: 700; min-width: 60px; text-align: center; }
-        .pdf-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--tactical-yellow); font-size: 14px; text-transform: uppercase; letter-spacing: 2px; }
-        
-        .app-overlay { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100; width: 95%; max-width: 600px; pointer-events: none; }
-        .control-panel { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); padding: 12px 18px; border-radius: 14px; pointer-events: auto; }
-        #asset-search { background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: white; width: 100%; padding: 12px; border-radius: 6px; font-size: 14px; outline: none; box-sizing: border-box; margin-bottom: 10px; }
-        .filter-row { display: flex; gap: 5px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
-        .filter-btn { background: rgba(255,255,255,0.1); color: #ccc; border: none; padding: 6px 12px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer; white-space: nowrap; text-transform: uppercase; }
-        .filter-btn.active { background: var(--accent); color: white; }
-        
-        .selector-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-        .panel-label { font-size: 10px; color: var(--accent); text-transform: uppercase; font-weight: 800; }
-        
-        select { background: transparent; color: white; border: none; font-weight: bold; width: 100%; cursor: pointer; font-size: 16px; outline: none; }
-        select option, select optgroup { background-color: #1a202c; color: white; }
-        
-        .factsheet-btn { background: var(--raf-blue); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
-        .manual-btn { background: var(--icao-gold); color: #000; border: none; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; display: none; }
-        .toggle-btn { background: var(--rotary-green); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; display: none; }
-        .details-panel { position: absolute; top: 0; right: -100%; width: 100%; max-width: 500px; height: 100%; background: rgba(10, 15, 25, 0.98); backdrop-filter: blur(30px); z-index: 300; transition: right 0.4s cubic-bezier(0.19, 1, 0.22, 1); color: white; overflow-y: auto; }
-        .details-panel.active { right: 0; }
-        .details-inner { padding: 60px 40px; }
-        .spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }
-        .spec-item { border-top: 1px solid var(--glass-border); padding: 15px 0; }
-        .full-width { grid-column: span 2; }
-        .spec-label { font-size: 11px; color: var(--accent); text-transform: uppercase; font-weight: 800; }
-        .spec-value { display: block; font-size: 18px; margin-top: 6px; font-family: 'Courier New', monospace; }
-        .hazard-box { border-left: 4px solid var(--raf-red); padding: 15px; background: rgba(194, 24, 7, 0.15); font-size: 15px; color: #ffcccc; }
-        model-viewer { width: 100vw; height: 100vh; background-color: #1a202c; }
-        #ar-button { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--raf-red); color: white; border: none; padding: 16px 32px; border-radius: 50px; font-weight: 700; cursor: pointer; z-index: 50; text-transform: uppercase; font-size: 12px; }
-        .hotspot { background: transparent; border: none; box-shadow: none; display: none; pointer-events: none; }
-        .hotspot.visible { display: block; }
-        .hotspot-annotation { background: #fff; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #000; font-size: 12px; font-weight: bold; padding: 4px 8px; position: absolute; white-space: nowrap; pointer-events: none; }
-        
-        .tactical-vehicle { width: 300px; height: 150px; display: none; background: transparent; border: none; overflow: visible; pointer-events: none; }
-        .tactical-vehicle.visible { display: block; }
-        /* Explicit sizing added so nested models are forced to render */
-        .tactical-model { width: 100%; height: 100%; display: block; background: transparent; pointer-events: none; }
-    </style>
-</head>
-<body>
-    <div id="start-screen">
-        <div class="radar"></div>
-        <div style="text-align:center;">
-            <h1 style="color:white; letter-spacing:8px; font-weight:200;">AERO VIEWER</h1>
-            <p style="color: var(--accent); font-size: 10px; letter-spacing: 2px; margin-bottom: 30px;">DFRP VR Team V1.1</p>
-            <button class="commence-btn" onclick="enterApp()">START VIEWER</button>
-        </div>
-    </div>
-    
-    <div id="loader-overlay">
-        <div class="panel-label" style="color: var(--tactical-yellow);">Processing Asset...</div>
-        <div class="load-bar-container"><div class="load-bar-fill"></div></div>
-    </div>
-    
-    <div id="pdf-modal">
-        <div class="pdf-header">
-            <div class="pdf-title" id="pdf-modal-title">TTP Viewer</div>
-            <button class="pdf-close-btn" onclick="closePdfModal()">✕ CLOSE</button>
-        </div>
-        <div class="pdf-container">
-            <div class="pdf-loading" id="pdf-loading">Loading TTP...</div>
-            <div class="pdf-scroll-container" id="pdf-scroll-container">
-                <div class="pdf-canvas-wrapper" id="pdf-canvas-wrapper">
-                    <canvas id="pdf-canvas"></canvas>
-                </div>
-            </div>
-            <div class="pdf-controls-bar">
-                <button class="pdf-control-btn" onclick="previousPage()">◀</button>
-                <div class="pdf-page-info" id="pdf-page-info">1 / 1</div>
-                <button class="pdf-control-btn" onclick="nextPage()">▶</button>
-                <button class="pdf-control-btn" onclick="zoomOut()">−</button>
-                <button class="pdf-control-btn" onclick="zoomIn()">+</button>
-            </div>
-        </div>
-    </div>
-    
-    <div id="details-panel" class="details-panel">
-        <div class="details-inner">
-            <div id="asset-classification" class="spec-label">Syncing...</div>
-            <h2 id="asset-title" style="margin: 15px 0; font-size: 32px; text-transform: uppercase;">Asset</h2>
-            <div id="spec-container" class="spec-grid"></div>
-            <button onclick="toggleDetails()" style="margin-top: 50px; background: white; border: none; color: black; padding: 18px; width: 100%; cursor: pointer; font-weight: 800; text-transform: uppercase;">Close window</button>
-        </div>
-    </div>
-    
-    <div class="app-overlay">
-        <div class="control-panel">
-            <input type="text" id="asset-search" placeholder="Search Database...">
-            <div class="filter-row">
-                <button class="filter-btn active" onclick="filterByType('all')">All</button>
-                <button class="filter-btn" onclick="filterByType('civilian')">Civilian</button>
-                <button class="filter-btn" onclick="filterByType('military')">Military</button>
-                <button class="filter-btn" onclick="filterByType('rotary')">Rotary</button>
-                <button class="filter-btn" onclick="filterByType('drone')">Drone</button>
-                <button class="filter-btn" onclick="filterByType('ordnance')">Ordnance</button>
-            </div>
-            <div class="selector-row">
-                <div style="flex-grow: 1; overflow: hidden; padding-right: 10px;">
-                    <span class="panel-label">Primary Asset</span>
-                    <select id="model-select"></select>
-                </div>
-                <button id="toggle-hotspots" class="toggle-btn" onclick="toggleHotspots()">POI</button>
-                <button id="pdf-btn" class="manual-btn" onclick="openPdfModal()">TTP</button>
-                <button class="factsheet-btn" onclick="toggleDetails()">Factsheet</button>
-            </div>
-            <div class="selector-row" style="margin-top: 10px;">
-                <div style="flex-grow: 1; overflow: hidden; padding-right: 10px;">
-                    <span class="panel-label">Tactical Scenario</span>
-                    <select id="scenario-select">
-                        <option value="none">Standard View</option>
-                        <option value="engine_fire">TTP 1 - Engine Fire</option>
-                        <option value="wheel_fire">TTP 2 - Wheel Assembly</option>
-                        <option value="internal_fire">TTP 3 - Internal Fire</option>
-                        <option value="external_fire">TTP 4 - External Fire</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <model-viewer id="main-viewer" ar ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="2">
-        <button slot="ar-button" id="ar-button">View in AR</button>
-    </model-viewer>
-    
-    <script>
-        // Mapped Directly from ATTP PDF Documentation
-        const tacticalDeployments = {
-            "A400M Atlas": {
-                "engine_fire": [
-                    { type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side / Rear)" },
-                    { type: "striker", position: "-25m 0m 10m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Dominant Position)" },
-                    { type: "striker", position: "-10m 0m -25m", rotation: "0 135deg 0", label: "Crash 3: Striker (Front of Engine Fire)" }
-                ],
-                "wheel_fire": [
-                    { type: "mprv", position: "15m 0m 15m", rotation: "0 90deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-20m 0m 0m", rotation: "0 -90deg 0", label: "Crash 2: Striker (Dominant Cover)" },
-                    { type: "striker", position: "20m 0m 5m", rotation: "0 90deg 0", label: "Crash 3: Striker (Opposite Undercarriage)" }
-                ],
-                "internal_fire": [
-                    { type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-20m 0m 10m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Provide Cover)" },
-                    { type: "striker", position: "0m 0m 25m", rotation: "0 180deg 0", label: "Crash 3: Striker (Rear / Ramp)" }
-                ],
-                "external_fire": [
-                    { type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-25m 0m 10m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Provide Cover)" },
-                    { type: "striker", position: "0m 0m 25m", rotation: "0 180deg 0", label: "Crash 3: Striker (Rear / Ramp)" }
-                ]
-            },
-            "C-17A Globemaster": {
-                "engine_fire": [
-                    { type: "mprv", position: "15m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-30m 0m 15m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Front of Engine Fire)" },
-                    { type: "striker", position: "-15m 0m -30m", rotation: "0 135deg 0", label: "Crash 3: Striker (Front/Rear Engine)" }
-                ],
-                "wheel_fire": [
-                    { type: "mprv", position: "15m 0m 20m", rotation: "0 90deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-25m 0m 0m", rotation: "0 -90deg 0", label: "Crash 2: Striker (Front Affected Side)" },
-                    { type: "striker", position: "25m 0m 5m", rotation: "0 90deg 0", label: "Crash 3: Striker (Rear Affected Side)" }
-                ],
-                "internal_fire": [
-                    { type: "mprv", position: "20m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-25m 0m 15m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Nose)" },
-                    { type: "striker", position: "0m 0m 35m", rotation: "0 180deg 0", label: "Crash 3: Striker (Starboard Front/Rear)" }
-                ],
-                "external_fire": [
-                    { type: "mprv", position: "20m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-30m 0m 15m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Nose)" },
-                    { type: "striker", position: "0m 0m 35m", rotation: "0 180deg 0", label: "Crash 3: Striker (Firefighting Side/Rear)" }
-                ]
-            },
-            "Piper PA-18 Super Cub": {
-                "engine_fire": [{ type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }],
-                "wheel_fire": [{ type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }],
-                "internal_fire": [{ type: "mprv", position: "10m 0m -10m", rotation: "0 225deg 0", label: "Crash 1: MPRV (Upwind)" }],
-                "external_fire": [{ type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }]
-            },
-            "Cessna 172": {
-                "engine_fire": [{ type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }],
-                "wheel_fire": [{ type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }],
-                "internal_fire": [{ type: "mprv", position: "10m 0m -10m", rotation: "0 225deg 0", label: "Crash 1: MPRV (Upwind)" }],
-                "external_fire": [{ type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }]
-            },
-            "DHC-1 Chipmunk": {
-                "engine_fire": [
-                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
-                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
-                ],
-                "wheel_fire": [
-                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
-                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
-                ],
-                "internal_fire": [
-                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
-                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
-                ],
-                "external_fire": [
-                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
-                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
-                ]
-            },
-            "Douglas C-47 Dakota": {
-                "engine_fire": [
-                    { type: "mprv", position: "15m 0m 15m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
-                    { type: "mprv", position: "-15m 0m 15m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
-                ],
-                "wheel_fire": [
-                    { type: "mprv", position: "15m 0m 15m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
-                    { type: "mprv", position: "-15m 0m 15m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
-                ],
-                "internal_fire": [
-                    { type: "mprv", position: "15m 0m 15m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
-                    { type: "mprv", position: "-15m 0m 15m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
-                ],
-                "external_fire": [
-                    { type: "mprv", position: "15m 0m 15m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
-                    { type: "mprv", position: "-15m 0m 15m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
-                ]
-            }
-        };
-
-        function enterApp() {
-            const startScreen = document.getElementById('start-screen');
-            if (startScreen) {
-                startScreen.style.opacity = '0';
-                setTimeout(() => {
-                    startScreen.style.display = 'none';
-                }, 600);
-            }
-        }
-
-        const viewer = document.querySelector('#main-viewer');
-        const modelSelect = document.querySelector('#model-select');
-        const searchInput = document.querySelector('#asset-search');
-        const loader = document.getElementById('loader-overlay');
-        const pdfBtn = document.getElementById('pdf-btn');
-        const hotspotToggleBtn = document.getElementById('toggle-hotspots');
-        const pdfModal = document.getElementById('pdf-modal');
-        const pdfCanvas = document.getElementById('pdf-canvas');
-        const pdfCanvasWrapper = document.getElementById('pdf-canvas-wrapper');
-        const pdfScrollContainer = document.getElementById('pdf-scroll-container');
-        const pdfLoading = document.getElementById('pdf-loading');
-        const pdfPageInfo = document.getElementById('pdf-page-info');
-        const pdfModalTitle = document.getElementById('pdf-modal-title');
-        const scenarioSelect = document.querySelector('#scenario-select');
-        
-        let pdfDoc = null;
-        let currentPage = 1;
-        let currentScale = 1.5;
-        const MIN_SCALE = 0.5;
-        const MAX_SCALE = 4.0;
-        
-        let hotspotsVisible = false;
-        let currentFilter = 'all';
-        let activePdfFile = "";
-        let currentAssetName = "";
-        
-        // Ensure PDF Filenames correctly match uploaded ATTP files
-        const rawData = [
-            { name: "Airbus A220", type: "civilian", file: "a220", ios_file: "A220", arff_cat: "6", fuel: "21k L", crew: "2", pax: "160", span: "35.1m", mtow: "70.9t", doors: "4 Main Doors", danger: "Engine Intake (5m).", note: "Modern efficient narrow-body.", batt: "Aft of nose wheel (L)", pdf: "A220.pdf" },
-            { name: "Airbus A318", type: "civilian", file: "airbus_a318-122", ios_file: "Airbus_A318-122", arff_cat: "6", fuel: "24k L", crew: "2", pax: "132", span: "34.1m", mtow: "68t", doors: "4 Main, 2 Overwing", danger: "Engine Intake (5m), Exhaust (50m).", note: "Smallest member of the A320 family.", batt: "Aft of Nose Gear (L)", pdf: "A318.pdf" },
-            { name: "Airbus A319", type: "civilian", file: "airbus_a319", ios_file: "Airbus_A319", arff_cat: "6", fuel: "24k L", crew: "2", pax: "156", span: "34.1m", mtow: "75.5t", doors: "4 Main, 2 Overwing", danger: "Eng Intake (5m).", note: "Battery in Fwd E/E bay.", batt: "Aft of Nose Gear (L)", pdf: "A319.pdf" },
-            { name: "Airbus A320", type: "civilian", file: "airbus_a320", ios_file: "Airbus_A320", arff_cat: "6", fuel: "27k L", crew: "2", pax: "186", span: "35.8m", mtow: "78t", doors: "4 Main, 4 Overwing", danger: "Eng Intake (5m).", note: "Oxygen fwd of wing.", batt: "Lower Fwd Electronics Bay", pdf: "A320.pdf" },
-            { name: "Airbus A321", type: "civilian", file: "airbus_a321", ios_file: "Airbus_A321", arff_cat: "7", fuel: "29k L", crew: "2", pax: "230", span: "35.8m", mtow: "93.5t", doors: "8 Main Doors", danger: "Tail strike risk.", note: "Stretched fuselage.", batt: "Aft of nose wheel", pdf: "A321.pdf"},
-            { name: "Airbus A330", type: "civilian", file: "airbus_a330-200", ios_file: "Airbus_A330-200", arff_cat: "8", fuel: "139k L", crew: "2", pax: "293", span: "60.3m", mtow: "242t", doors: "8 Main Doors", danger: "Widebody Intake (8m).", note: "Twin-aisle.", batt: "Fwd Main Gear Bay", pdf : "A330.pdf" },
-            { name: "Airbus A340", type: "civilian", file: "airbus_a340", ios_file: "airbus_a340", arff_cat: "9", fuel: "215k L", crew: "2", pax: "375", span: "63.4m", mtow: "380t", doors: "8 Main Doors", danger: "4x Eng suction.", note: "Hydraulic reservoir in wing root.", batt: "Lower Cargo Bay Fwd",pdf : "A340.pdf" },
-            { name: "Airbus A350", type: "civilian", file: "airbus_a350-1000", ios_file: "Airbus_A350-1000", arff_cat: "9", fuel: "156k L", crew: "2", pax: "480", span: "64.75m", mtow: "319t", doors: "8 Main Doors", danger: "Massive engine suction (10m+).", note: "Large composite widebody.", batt: "Under floor fwd of wing", pdf: "A350.pdf" },
-            { name: "Airbus A380", type: "civilian", file: "airbus_a380", ios_file: "Airbus_A380", arff_cat: "10", fuel: "320k L", crew: "2", pax: "853", span: "79.7m", mtow: "575t", doors: "16 Main Doors", danger: "Intake (10m).", note: "Super-heavy.", batt: "Multiple (Fwd/Aft Gear Bays)", pdf: "A380.pdf" },
-            { name: "A-10 Thunderbolt", type: "military", file: "a10", ios_file: "A10", crew: "1", weapons: "30mm GAU-8", span: "17.5m", mtow: "22.7t", danger: "Rear Intake, Gun blast.", note: "Titanium armor.", pdf : "A10.pdf" },
-            { name: "A400M Atlas", type: "military", file: "A400M", ios_file: "a400m", crew: "3", pax: "116", weapons: "Cargo", span: "42.4m", mtow: "141t", danger: "4x Propellers.", note: "Tactical heavy.", pdf: "ATTP-A01-A400M-(Pax)-V1.2.pdf" },
-            { name: "B-1 Lancer", type: "military", file: "B1", ios_file: "B1", crew: "4", weapons: "Internal", span: "41.8m", mtow: "216t", danger: "Sweep Wing.", note: "Supersonic bomber.", pdf : "B1.pdf" },
-            { name: "B-2 Spirit", type: "military", file: "B2", ios_file: "b2", crew: "2", weapons: "Internal", span: "52.4m", mtow: "170t", danger: "Dorsal Intake.", note: "Stealth composite.", pdf : "B2.pdf" },
-            { name: "B-52 Stratofortress", type: "military", file: "boeing_b-52_stratofortress", ios_file: "Boeing_B-52_Stratofortress", crew: "5", weapons: "Internal", span: "56.4m", mtow: "220t", danger: "8x Engines.", note: "Strategic heavy.", pdf : "B52.pdf" },
-            { name: "BAE Hawk", type: "military", file: "Hawk", ios_file: "hawk", crew: "2", weapons: "30mm Pod", span: "9.9m", mtow: "9.1t", danger: "Intake, Seats.", note: "Advanced trainer.", pdf : "Hawk.pdf" },
-            { name: "C-130 Hercules", type: "military", file: "c130j", ios_file: "c130j", crew: "3", pax: "92", span: "40.4m", mtow: "70.3t", danger: "4x Propellers.", note: "Tactical airlifter.", pdf: "C130.pdf" },
-            { name: "C-17A Globemaster", type: "military", file: "c17a", ios_file: "C17A", crew: "3", pax: "102", span: "51.7m", mtow: "265t", danger: "Reverse thrust.", note: "Tactical airlifter.", pdf: "ATTP-A06-C17-(Cargo)-V1.2.pdf" },
-            { name: "C-5 Galaxy", type: "military", file: "c5_galaxy_model", ios_file: "C5_galaxy_model", crew: "7", pax: "73", span: "67.9m", mtow: "381t", danger: "Massive suction.", note: "Strategic heavy lifter.", pdf: "C5.pdf" },
-            { name: "Cessna 172", type: "civilian", file: "cessna_172", ios_file: "Cessna_172", crew: "1", pax: "3", span: "11.0m", danger: "Propeller", note: "Light trainer.", pdf: "ATTP-A04-Cessna-172H-1-MPRV-V1.1.pdf" },
-            { name: "DHC-1 Chipmunk", type: "military", file: "de_havilland_canada_dhc-1_chipmunk", ios_file: "de_Havilland_Canada_DHC-1_Chipmunk", crew: "2", span: "10.4m", mtow: "0.9t", danger: "Propeller arc.", note: "Classic trainer.", pdf: "ATTP-A07-Chipmunk-V1.1.pdf" },
-            { name: "Douglas C-47 Dakota", type: "military", file: "mcdonnell_douglas_dc-3", ios_file: "G-PIGY", arff_cat: "3", crew: "2", span: "29m", mtow: "11.4t", danger: "Propeller hazard.", note: "Heritage DC-3 variant.", pdf: "ATTP-A08-Dakota-V1.1.pdf" },
-            { name: "F/A-18 Hornet", type: "military", file: "F18Hornet", ios_file: "F18Hornet", crew: "1/2", weapons: "Multi-role", span: "12.3m", mtow: "23.5t", danger: "Carrier gear.", note: "Folding wings.", pdf : "FA18.pdf" },
-            { name: "F-15 Strike Eagle", type: "military", file: "F15", ios_file: "f15", crew: "1/2", weapons: "Multi-role", span: "13m", mtow: "36.7t", danger: "Hot exhaust.", note: "Air superiority.", pdf : "F15.pdf" },
-            { name: "F-16 Falcon", type: "military", file: "F16", ios_file: "f16", crew: "1", weapons: "20mm/Msls", span: "9.9m", mtow: "19.2t", danger: "Ventral Intake, Hydrazine.", note: "Toxic EPU hazard.", pdf : "F16.pdf"},
-            { name: "F-22 Raptor", type: "military", file: "F22", ios_file: "f22", crew: "1", weapons: "Internal", span: "13.5m", mtow: "38t", danger: "LOX Systems.", note: "Stealth interceptor.", pdf : "F22.pdf" },
-            { name: "F-35 Lightning 2", type: "military", file: "f35", ios_file: "F35", crew: "1", weapons: "Internal", span: "10.7m", mtow: "31.7t", danger: "Eng Heat (1000C).", note: "Stealth composite.", pdf: "F35.pdf" },
-            { name: "Grob G 115 Tutor", type: "military", file: "Grob", ios_file: "grob", crew: "2", span: "10m", mtow: "0.99t", danger: "Propeller arc.", note: "Primary trainer.", pdf: "AQRC-A27-Grob-115E-Tutor.pdf" },
-            { name: "Piper PA-18 Super Cub", type: "civilian", file: "piper_pa-18_super_cub_philsca_edition", ios_file: "PIPER_PA-18_SUPER_CUB_PHILSCA_EDITION", pdf: "ATTP-A03-PA-28-Cherokee-1-MPRV-V1.1.pdf" }
-        ];
-
-        const modelData = rawData.sort((a, b) => a.name.localeCompare(b.name));
-        
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        let renderTask = null;
-
-        window.addEventListener('DOMContentLoaded', () => { 
-            populateSelect();
-            if (modelData.length > 0) {
-                updateAsset(0); 
-            }
-        });
-        
-        async function openPdfModal() {
-            if (!activePdfFile) return;
-            // Pointing to the correct "TTP" directory!
-            const pdfPath = `TTP/${activePdfFile}`;
-            pdfModalTitle.textContent = `TTP: ${currentAssetName}`;
-            pdfModal.classList.add('active');
-            pdfLoading.style.display = 'block';
-            try {
-                const loadingTask = pdfjsLib.getDocument(pdfPath);
-                pdfDoc = await loadingTask.promise;
-                currentPage = 1;
-                currentScale = 1.5;
-                await renderPage(currentPage);
-                pdfLoading.style.display = 'none';
-            } catch (error) {
-                console.error('Error loading PDF:', error);
-                pdfLoading.textContent = 'Error loading PDF - Ensure you are running a local server.';
-            }
-        }
-        
-        async function renderPage(pageNum) {
-            if (!pdfDoc) return;
-            if (renderTask) renderTask.cancel();
-            const page = await pdfDoc.getPage(pageNum);
-            let viewport = page.getViewport({ scale: currentScale });
-            const rotation = page.rotate || 0;
-            viewport = page.getViewport({ scale: currentScale, rotation: rotation });
-            const context = pdfCanvas.getContext('2d');
-            pdfCanvas.height = viewport.height;
-            pdfCanvas.width = viewport.width;
-            context.clearRect(0, 0, pdfCanvas.width, pdfCanvas.height);
-            const renderContext = { canvasContext: context, viewport: viewport };
-            renderTask = page.render(renderContext);
-            try {
-                await renderTask.promise;
-                renderTask = null;
-            } catch (err) {
-                if (err.name !== 'RenderingCancelledException') console.error('Render error:', err);
-            }
-            pdfPageInfo.textContent = `${currentPage} / ${pdfDoc.numPages}`;
-        }
-        
-        function closePdfModal() {
-            pdfModal.classList.remove('active');
-            if (renderTask) { renderTask.cancel(); renderTask = null; }
-            pdfDoc = null; currentPage = 1; currentScale = 1.5;
-        }
-        
-        async function nextPage() { if (!pdfDoc || currentPage >= pdfDoc.numPages) return; currentPage++; await renderPage(currentPage); pdfScrollContainer.scrollTop = 0; }
-        async function previousPage() { if (!pdfDoc || currentPage <= 1) return; currentPage--; await renderPage(currentPage); pdfScrollContainer.scrollTop = 0; }
-        async function zoomIn() { if (currentScale >= MAX_SCALE) return; currentScale = Math.min(currentScale + 0.25, MAX_SCALE); await renderPage(currentPage); }
-        async function zoomOut() { if (currentScale <= MIN_SCALE) return; currentScale = Math.max(currentScale - 0.25, MIN_SCALE); await renderPage(currentPage); }
-        
-        function toggleDetails() { document.getElementById('details-panel').classList.toggle('active'); }
-        
-        function filterByType(type) {
-            currentFilter = type;
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.textContent.toLowerCase() === type || (type === 'all' && btn.textContent === 'All'));
-            });
-            populateSelect();
-            const first = modelData.find(m => type === 'all' || m.type === type);
-            if(first) updateAsset(modelData.indexOf(first));
-        }
-        
-        function populateSelect() {
-            const term = searchInput.value.toLowerCase();
-            modelSelect.innerHTML = '';
-            const groups = { civilian: "CIVILIAN", rotary: "ROTARY", military: "MILITARY", drone: "DRONE", ordnance: "ORDNANCE" };
-            Object.keys(groups).forEach(key => {
-                const group = document.createElement('optgroup');
-                group.label = groups[key];
-                modelData.filter(m => (m.type === key) && (currentFilter === 'all' || currentFilter === key) && m.name.toLowerCase().includes(term))
-                         .forEach(m => {
-                             const opt = document.createElement('option');
-                             opt.value = modelData.indexOf(m);
-                             opt.textContent = m.name;
-                             group.appendChild(opt);
-                         });
-                if(group.children.length) modelSelect.appendChild(group);
-            });
-        }
-        
-        function updateAsset(idx) {
-            const asset = modelData[idx];
-            if(!asset) return;
-            modelSelect.value = idx;
-            viewer.src = `models/${asset.file}.glb`;
-            viewer.iosSrc = `models/${asset.ios_file}.usdz`;
-            activePdfFile = asset.pdf || "";
-            currentAssetName = asset.name;
-            pdfBtn.style.display = activePdfFile ? "block" : "none";
-            const poiModels = ["Chinook", "Blackhawk", "Venom", "A-10 Thunderbolt"];
-            const isPoiEnabled = poiModels.some(n => asset.name.includes(n));
-            hotspotToggleBtn.style.display = isPoiEnabled ? "block" : "none";
-            hotspotsVisible = false;
-            document.querySelectorAll('.hotspot').forEach(h => h.classList.remove('visible'));
-            hotspotToggleBtn.textContent = "POI";
-            document.getElementById('asset-title').textContent = asset.name;
-            const container = document.getElementById('spec-container');
-            const classif = document.getElementById('asset-classification');
-            classif.textContent = asset.type === 'civilian' ? "ICAO ARFF PROTOCOL" : "TACTICAL ASSET DATA";
-            container.innerHTML = `
-                <div class="spec-item"><span class="spec-label">MTOW</span><span class="spec-value">${asset.mtow || 'N/A'}</span></div>
-                <div class="spec-item"><span class="spec-label">Span</span><span class="spec-value">${asset.span || 'N/A'}</span></div>
-                <div class="spec-item"><span class="spec-label">Crew/Pax</span><span class="spec-value">${asset.crew || 'N/A'} / ${asset.pax || 'N/A'}</span></div>
-                <div class="spec-item"><span class="spec-label">Asset Ref</span><span class="spec-value">${asset.batt || asset.weapons || asset.neq || 'N/A'}</span></div>
-                <div class="spec-item full-width"><span class="spec-label">Hazards</span><span class="spec-value">${asset.danger || 'N/A'}</span></div>
-                <div class="spec-item full-width"><span class="spec-label">Briefing</span><span class="spec-value hazard-box">${asset.note || 'No additional briefing notes.'}</span></div>
-            `;
-            
-            scenarioSelect.value = "none";
-            renderTacticalScenario("none");
-        }
-        
-        function toggleHotspots() {
-            hotspotsVisible = !hotspotsVisible;
-            const activeModel = modelData[modelSelect.value];
-            if (!activeModel) return;
-            const isA10 = activeModel.name.includes("A-10");
-            const hotspots = document.querySelectorAll('.hotspot:not(.tactical-vehicle)');
-            hotspots.forEach(h => {
-                const isPartOfA10 = h.classList.contains('group-a10');
-                const isPartOfRotary = h.classList.contains('group-rotary');
-                if (hotspotsVisible) {
-                    if (isA10 && isPartOfA10) h.classList.add('visible');
-                    else if (!isA10 && isPartOfRotary) h.classList.add('visible');
-                } else {
-                    h.classList.remove('visible');
-                }
-            });
-            hotspotToggleBtn.textContent = hotspotsVisible ? "Hide" : "POI";
-        }
-        
-        function renderTacticalScenario(scenarioId) {
-            document.querySelectorAll('.tactical-vehicle').forEach(el => el.remove());
-            
-            if (scenarioId === "none") return;
-            
-            const assetData = tacticalDeployments[currentAssetName];
-            if (!assetData || !assetData[scenarioId]) {
-                console.warn("No tactical data for current asset/scenario combination.");
-                return;
-            }
-
-            const deployments = assetData[scenarioId];
-            
-            deployments.forEach((vehicle, index) => {
-                const hotspot = document.createElement('div');
-                hotspot.className = 'hotspot tactical-vehicle visible';
-                hotspot.slot = `hotspot-tactical-${index}`;
-                hotspot.dataset.position = vehicle.position;
-                hotspot.dataset.normal = "0 1 0";
-                
-                hotspot.innerHTML = `
-                    <model-viewer 
-                        class="tactical-model"
-                        src="models/${vehicle.type}.glb" 
-                        camera-controls="false" 
-                        disable-zoom
-                        disable-pan
-                        interaction-prompt="none" 
-                        exposure="1.2"
-                        shadow-intensity="1"
-                        orientation="${vehicle.rotation}">
-                    </model-viewer>
-                    <div class="hotspot-annotation" style="transform: translate(0, -30px); background: var(--raf-red); color: white;">
-                        ${vehicle.label}
-                    </div>
-                `;
-                
-                viewer.appendChild(hotspot);
-            });
-        }
-
-        modelSelect.addEventListener('change', (e) => updateAsset(e.target.value));
-        searchInput.addEventListener('input', populateSelect);
-        scenarioSelect.addEventListener('change', (e) => renderTacticalScenario(e.target.value));
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .catch(err => console.log('SW Registration Failed', err));
-            });
-        }
-    </script>
-</body>
-</html>
-
-C17 model show mprv - but out of size / rotation wrong         .factsheet-btn { background: var(--raf-blue); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; }
-        .manual-btn { background: var(--icao-gold); color: #000; border: none; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; display: none; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C17 and MPRV Tactical Deployment</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <style>
+        body { margin: 0; background-color: #1a1a1a; color: white; font-family: sans-serif; }
+        .container { width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        model-viewer { width: 100%; height: 80%; background-color: #2a2a2a; }
+        .controls { padding: 20px; text-align: center; }
     </style>
 </head>
 <body>
-    <div id="start-screen">
-        <div class="radar"></div>
-        <div style="text-align:center;">
-            <h1 style="color:white; letter-spacing:8px; font-weight:200;">AERO VIEWER</h1>
-            <p style="color: var(--accent); font-size: 10px; letter-spacing: 2px; margin-bottom: 30px;">DFRP VR Team V1.1</p>
-            <button class="commence-btn" onclick="enterApp()">START VIEWER</button>
-        </div>
+
+<div class="container">
+    <model-viewer 
+        src="c17_globemaster_iii.glb" 
+        camera-controls 
+        auto-rotate 
+        shadow-intensity="1" 
+        stage-light-intensity="2"
+        environment-image="neutral"
+        alt="C17 Globemaster Central Asset">
+        
+        </model-viewer>
+
+    <div class="controls">
+        <h3>Tactical Formation: 1x C17 (Center) | 2x MPRV (Rescue Side & Support)</h3>
+        <p>Positions based on ATTP-A06 Incident Deployment Protocols</p>
     </div>
+</div>
 
-    <div id="pdf-modal">
-        <div class="pdf-header">
-            <div class="pdf-title" id="pdf-modal-title">TTP Viewer</div>
-            <button class="pdf-close-btn" onclick="closePdfModal()">✕ CLOSE</button>
-        </div>
-        <div class="pdf-container">
-            <div class="pdf-scroll-container">
-                <canvas id="pdf-canvas"></canvas>
-            </div>
-            <div class="pdf-controls-bar">
-                <button class="pdf-control-btn" onclick="previousPage()">◀</button>
-                <div id="pdf-page-info" style="color:white; font-size:12px;">1 / 1</div>
-                <button class="pdf-control-btn" onclick="nextPage()">▶</button>
-            </div>
-        </div>
-    </div>
+<script type="module">
+    import * as THREE from 'https://cdn.skypack.dev/three@0.150.0';
+    import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.150.0/examples/jsm/loaders/GLTFLoader.js';
 
-    <div id="details-panel" class="details-panel">
-        <div class="details-inner">
-            <div id="asset-classification" class="spec-label">Syncing...</div>
-            <h2 id="asset-title" style="margin: 15px 0; font-size: 32px; text-transform: uppercase;">Asset</h2>
-            <div id="spec-container" class="spec-grid"></div>
-            <button onclick="toggleDetails()" style="margin-top: 50px; background: white; border: none; color: black; padding: 18px; width: 100%; cursor: pointer; font-weight: 800; text-transform: uppercase;">Close window</button>
-        </div>
-    </div>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-    <div class="app-overlay">
-        <div class="control-panel">
-            <input type="text" id="asset-search" placeholder="Search Database...">
-            <div class="filter-row">
-                <button class="filter-btn active" onclick="filterByType('all')">All</button>
-                <button class="filter-btn" onclick="filterByType('civilian')">Civilian</button>
-                <button class="filter-btn" onclick="filterByType('military')">Military</button>
-            </div>
-            <div class="selector-row">
-                <div style="flex-grow: 1; overflow: hidden; padding-right: 10px;">
-                    <span class="panel-label">Primary Asset</span>
-                    <select id="model-select"></select>
-                </div>
-                <button id="pdf-btn" class="manual-btn" onclick="openPdfModal()">TTP</button>
-                <button class="factsheet-btn" onclick="toggleDetails()">Factsheet</button>
-            </div>
-            <div class="selector-row" style="margin-top: 10px;">
-                <div style="flex-grow: 1;">
-                    <span class="panel-label">Tactical Scenario</span>
-                    <select id="scenario-select">
-                        <option value="none">Standard View</option>
-                        <option value="engine_fire">TTP 1 - Engine Fire</option>
-                        <option value="wheel_fire">TTP 2 - Wheel Assembly</option>
-                        <option value="internal_fire">TTP 3 - Internal Fire</option>
-                        <option value="external_fire">TTP 4 - External Fire</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-    </div>
+    const loader = new GLTFLoader();
 
-    <model-viewer id="main-viewer" ar ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="2"></model-viewer>
+    // 1. Load C17 (Central Asset)
+    loader.load('c17_globemaster_iii.glb', (gltf) => {
+        scene.add(gltf.scene);
+    });
 
-    <script>
-        const tacticalDeployments = {
-            "A400M Atlas": {
-                "engine_fire": [
-                    { type: "mprv", position: "15m 0m 20m", rotation: "0deg 45deg 0deg", label: "Crash 1: MPRV" },
-                    { type: "striker", position: "-25m 0m 10m", rotation: "0deg -45deg 0deg", label: "Crash 2: Striker" }
-                ]
-            },
-            "C-17A Globemaster": {
-                "engine_fire": [
-                    { type: "mprv", position: "18m 0m 15m", rotation: "0deg 45deg 0deg", label: "Crash 1: MPRV" },
-                    { type: "striker", position: "-30m 0m 20m", rotation: "0deg -45deg 0deg", label: "Crash 2: Striker" },
-                    { type: "striker", position: "0m 0m -35m", rotation: "0deg 180deg 0deg", label: "Crash 3: Striker" }
-                ],
-                "wheel_fire": [
-                    { type: "mprv", position: "20m 0m 0m", rotation: "0deg 90deg 0deg", label: "Crash 1: MPRV" },
-                    { type: "striker", position: "-25m 0m 5m", rotation: "0deg -90deg 0deg", label: "Crash 2: Striker" }
-                ]
-            }
-        };
+    // 2. Load MPRV 1 (Crash 1 - Rescue Side)
+    loader.load('mprv.glb', (gltf) => {
+        gltf.scene.position.set(-30, 0, 10); // Tactical offset to Port
+        scene.add(gltf.scene);
+    });
 
-        const rawData = [
-            { name: "A400M Atlas", type: "military", file: "A400M", ios_file: "a400m", mtow: "141t", span: "42.4m", crew: "3", pax: "116", danger: "Propellers", note: "Tactical heavy.", pdf: "ATTP-A01-A400M-(Pax)-V1.2.pdf" },
-            { name: "C-17A Globemaster", type: "military", file: "c17a", ios_file: "C17A", mtow: "265t", span: "51.7m", crew: "3", pax: "102", danger: "Reverse thrust", note: "Strategic lifter.", pdf: "ATTP-A06-C17-(Cargo)-V1.2.pdf" },
-            { name: "Airbus A320", type: "civilian", file: "airbus_a320", ios_file: "Airbus_A320", mtow: "78t", span: "35.8m", crew: "2", pax: "186", danger: "Eng Intake", pdf: "A320.pdf" }
-        ];
+    // 3. Load MPRV 2 (Secondary Support)
+    loader.load('mprv.glb', (gltf) => {
+        gltf.scene.position.set(30, 0, 50); // Tactical offset to Rear/Starboard
+        scene.add(gltf.scene);
+    });
 
-        const modelData = rawData.sort((a, b) => a.name.localeCompare(b.name));
-        const viewer = document.querySelector('#main-viewer');
-        const modelSelect = document.querySelector('#model-select');
-        const scenarioSelect = document.querySelector('#scenario-select');
-        const pdfBtn = document.getElementById('pdf-btn');
-        let currentAssetName = "";
+    const light = new THREE.DirectionalLight(0xffffff, 2);
+    light.position.set(10, 10, 10);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0x404040));
 
-        function enterApp() {
-            document.getElementById('start-screen').style.opacity = '0';
-            setTimeout(() => document.getElementById('start-screen').style.display = 'none', 600);
-        }
+    camera.position.set(0, 50, 100);
+    camera.lookAt(0, 0, 0);
 
-        function populateSelect() {
-            modelSelect.innerHTML = '';
-            modelData.forEach((m, idx) => {
-                const opt = document.createElement('option');
-                opt.value = idx;
-                opt.textContent = m.name;
-                modelSelect.appendChild(opt);
-            });
-        }
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+    }
+    animate();
+</script>
 
-        function updateAsset(idx) {
-            const asset = modelData[idx];
-            currentAssetName = asset.name;
-            viewer.src = `models/${asset.file}.glb`;
-            pdfBtn.style.display = asset.pdf ? "block" : "none";
-            document.getElementById('asset-title').textContent = asset.name;
-            document.getElementById('spec-container').innerHTML = `
-                <div class="spec-item"><span class="spec-label">MTOW</span><span class="spec-value">${asset.mtow}</span></div>
-                <div class="spec-item"><span class="spec-label">Span</span><span class="spec-value">${asset.span}</span></div>
-            `;
-            scenarioSelect.value = "none";
-            renderTacticalScenario("none");
-        }
-
-        function renderTacticalScenario(scenarioId) {
-            document.querySelectorAll('.tactical-vehicle').forEach(el => el.remove());
-            if (scenarioId === "none") return;
-
-            const assetData = tacticalDeployments[currentAssetName];
-            if (!assetData || !assetData[scenarioId]) return;
-
-            assetData[scenarioId].forEach((v, i) => {
-                const hotspot = document.createElement('div');
-                hotspot.className = 'hotspot tactical-vehicle visible';
-                hotspot.slot = `hotspot-tactical-${i}`;
-                hotspot.dataset.position = v.position;
-                hotspot.dataset.normal = "0 1 0";
-
-                hotspot.innerHTML = `
-                    <model-viewer class="tactical-model" src="models/${v.type}.glb" 
-                        interaction-prompt="none" scale="0.25 0.25 0.25" orientation="${v.rotation}">
-                    </model-viewer>
-                    <div class="hotspot-annotation">${v.label}</div>
-                `;
-                viewer.appendChild(hotspot);
-            });
-        }
-
-        function toggleDetails() { document.getElementById('details-panel').classList.toggle('active'); }
-
-        modelSelect.addEventListener('change', (e) => updateAsset(e.target.value));
-        scenarioSelect.addEventListener('change', (e) => renderTacticalScenario(e.target.value));
-
-        window.onload = () => {
-            populateSelect();
-            updateAsset(0);
-        };
-    </script>
 </body>
 </html>
