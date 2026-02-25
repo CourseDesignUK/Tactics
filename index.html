@@ -2,79 +2,60 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C17 and MPRV Tactical Deployment</title>
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <title>C17 Tactical Deployment</title>
     <style>
-        body { margin: 0; background-color: #1a1a1a; color: white; font-family: sans-serif; }
-        .container { width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        model-viewer { width: 100%; height: 80%; background-color: #2a2a2a; }
-        .controls { padding: 20px; text-align: center; }
+        body { margin: 0; background: #121212; overflow: hidden; }
+        #labels { position: absolute; top: 10px; left: 10px; color: white; font-family: monospace; }
     </style>
 </head>
 <body>
-
-<div class="container">
-    <model-viewer 
-        src="c17_globemaster_iii.glb" 
-        camera-controls 
-        auto-rotate 
-        shadow-intensity="1" 
-        stage-light-intensity="2"
-        environment-image="neutral"
-        alt="C17 Globemaster Central Asset">
-        
-        </model-viewer>
-
-    <div class="controls">
-        <h3>Tactical Formation: 1x C17 (Center) | 2x MPRV (Rescue Side & Support)</h3>
-        <p>Positions based on ATTP-A06 Incident Deployment Protocols</p>
+    <div id="labels">
+        FORMATION: 1x C17 (CENTER) | 2x MPRV (RESCUE/SUPPORT)
     </div>
-</div>
 
-<script type="module">
-    import * as THREE from 'https://cdn.skypack.dev/three@0.150.0';
-    import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.150.0/examples/jsm/loaders/GLTFLoader.js';
+    <script type="module">
+        import * as THREE from 'https://cdn.skypack.dev/three@0.150.0';
+        import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.150.0/examples/jsm/loaders/GLTFLoader.js';
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-    const loader = new GLTFLoader();
+        // Lighting
+        const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+        sun.position.set(50, 50, 50);
+        scene.add(ambient, sun);
 
-    // 1. Load C17 (Central Asset)
-    loader.load('c17_globemaster_iii.glb', (gltf) => {
-        scene.add(gltf.scene);
-    });
+        const loader = new GLTFLoader();
 
-    // 2. Load MPRV 1 (Crash 1 - Rescue Side)
-    loader.load('mprv.glb', (gltf) => {
-        gltf.scene.position.set(-30, 0, 10); // Tactical offset to Port
-        scene.add(gltf.scene);
-    });
+        // 1. C17 Globemaster (Central)
+        loader.load('models/c17_globemaster_iii.glb', (gltf) => {
+            scene.add(gltf.scene);
+        });
 
-    // 3. Load MPRV 2 (Secondary Support)
-    loader.load('mprv.glb', (gltf) => {
-        gltf.scene.position.set(30, 0, 50); // Tactical offset to Rear/Starboard
-        scene.add(gltf.scene);
-    });
+        // 2. MPRV (Crash 1 - Rescue Side)
+        loader.load('models/mprv.glb', (gltf) => {
+            gltf.scene.position.set(-25, 0, 15); // Port side offset
+            scene.add(gltf.scene);
+        });
 
-    const light = new THREE.DirectionalLight(0xffffff, 2);
-    light.position.set(10, 10, 10);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0x404040));
+        // 3. MPRV (Secondary Support)
+        loader.load('models/mprv.glb', (gltf) => {
+            gltf.scene.position.set(25, 0, 40); // Starboard/Rear support
+            scene.add(gltf.scene);
+        });
 
-    camera.position.set(0, 50, 100);
-    camera.lookAt(0, 0, 0);
+        camera.position.set(0, 60, 100);
+        camera.lookAt(0, 0, 0);
 
-    function animate() {
-        requestAnimationFrame(animate);
-        renderer.render(scene, camera);
-    }
-    animate();
-</script>
-
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
 </body>
 </html>
