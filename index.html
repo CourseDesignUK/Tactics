@@ -80,15 +80,17 @@
         .hotspot { background: transparent; border: none; box-shadow: none; display: none; pointer-events: none; }
         .hotspot.visible { display: block; }
         .hotspot-annotation { background: #fff; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #000; font-size: 12px; font-weight: bold; padding: 4px 8px; position: absolute; white-space: nowrap; pointer-events: none; }
-        .tactical-vehicle { width: 250px; height: 150px; pointer-events: none; }
-        .tactical-model { width: 100%; height: 100%; background: transparent; }
+        
+        .tactical-vehicle { width: 300px; height: 150px; display: none; background: transparent; border: none; overflow: visible; pointer-events: none; }
+        .tactical-vehicle.visible { display: block; }
+        .tactical-model { width: 100%; height: 100%; display: block; background: transparent; pointer-events: none; }
     </style>
 </head>
 <body>
     <div id="start-screen">
         <div class="radar"></div>
         <div style="text-align:center;">
-            <h1 style="color:white; letter-spacing:8px; font-weight:200;">ATTP VIEWER</h1>
+            <h1 style="color:white; letter-spacing:8px; font-weight:200;">AERO VIEWER</h1>
             <p style="color: var(--accent); font-size: 10px; letter-spacing: 2px; margin-bottom: 30px;">DFRP VR Team V1.1</p>
             <button class="commence-btn" onclick="enterApp()">START VIEWER</button>
         </div>
@@ -101,11 +103,11 @@
     
     <div id="pdf-modal">
         <div class="pdf-header">
-            <div class="pdf-title" id="pdf-modal-title">Aircraft Quick Reference Card</div>
+            <div class="pdf-title" id="pdf-modal-title">TTP Viewer</div>
             <button class="pdf-close-btn" onclick="closePdfModal()">✕ CLOSE</button>
         </div>
         <div class="pdf-container">
-            <div class="pdf-loading" id="pdf-loading">Loading PDF...</div>
+            <div class="pdf-loading" id="pdf-loading">Loading TTP...</div>
             <div class="pdf-scroll-container" id="pdf-scroll-container">
                 <div class="pdf-canvas-wrapper" id="pdf-canvas-wrapper">
                     <canvas id="pdf-canvas"></canvas>
@@ -147,7 +149,7 @@
                     <select id="model-select"></select>
                 </div>
                 <button id="toggle-hotspots" class="toggle-btn" onclick="toggleHotspots()">POI</button>
-                <button id="pdf-btn" class="manual-btn" onclick="openPdfModal()">AQRC</button>
+                <button id="pdf-btn" class="manual-btn" onclick="openPdfModal()">TTP</button>
                 <button class="factsheet-btn" onclick="toggleDetails()">Factsheet</button>
             </div>
             <div class="selector-row" style="margin-top: 10px;">
@@ -173,60 +175,96 @@
         const tacticalDeployments = {
             "A400M Atlas": {
                 "engine_fire": [
-                    { type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-25m 0m 10m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Dominant)" },
-                    { type: "striker", position: "15m 0m -25m", rotation: "0 135deg 0", label: "Crash 3: Striker (Front of Engine)" }
+                    { type: "mprv", position: "15m 0m -20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side / Rear)" },
+                    { type: "striker", position: "-25m 0m 15m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Dominant)" },
+                    { type: "striker", position: "15m 0m 10m", rotation: "0 135deg 0", label: "Crash 3: Striker (Front of Engine)" }
                 ],
                 "wheel_fire": [
-                    { type: "mprv", position: "20m 0m 0m", rotation: "0 90deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-20m 0m 0m", rotation: "0 -90deg 0", label: "Crash 2: Striker (Opposite Undercarriage)" },
-                    { type: "striker", position: "-20m 0m -10m", rotation: "0 -90deg 0", label: "Crash 3: Striker (Dominant)" }
+                    { type: "mprv", position: "15m 0m 0m", rotation: "0 90deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "-20m 0m 10m", rotation: "0 -90deg 0", label: "Crash 2: Striker (Dominant Cover)" },
+                    { type: "striker", position: "-20m 0m -10m", rotation: "0 90deg 0", label: "Crash 3: Striker (Opposite Undercarriage)" }
                 ],
                 "internal_fire": [
-                    { type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "0m 0m -30m", rotation: "0 180deg 0", label: "Crash 2: Striker (Nose/Provide Cover)" },
-                    { type: "striker", position: "0m 0m 30m", rotation: "0 0deg 0", label: "Crash 3: Striker (Rear/Ramp)" }
+                    { type: "mprv", position: "15m 0m -20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "0m 0m 30m", rotation: "0 180deg 0", label: "Crash 2: Striker (Provide Cover)" },
+                    { type: "striker", position: "0m 0m -30m", rotation: "0 0deg 0", label: "Crash 3: Striker (Rear Deployment / Ramp)" }
                 ],
                 "external_fire": [
-                    { type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-20m 0m -15m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Front Affected Side)" },
-                    { type: "striker", position: "-20m 0m 15m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Rear Affected Side)" }
+                    { type: "mprv", position: "15m 0m -20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "-20m 0m 15m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Front Affected Side)" },
+                    { type: "striker", position: "-20m 0m -15m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Rear Affected Side)" }
                 ]
             },
             "C-17A Globemaster": {
                 "engine_fire": [
-                    { type: "mprv", position: "20m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-25m 0m -15m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Front of Engine)" },
-                    { type: "striker", position: "-25m 0m 15m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Front or Rear Engine)" }
+                    { type: "mprv", position: "20m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "-20m 0m 15m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Front of Engine)" },
+                    { type: "striker", position: "-20m 0m -15m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Front/Rear Engine)" }
                 ],
                 "wheel_fire": [
                     { type: "mprv", position: "20m 0m 0m", rotation: "0 90deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "-25m 0m -10m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Front Affected Side)" },
-                    { type: "striker", position: "-25m 0m 10m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Rear Affected Side)" }
+                    { type: "striker", position: "-25m 0m 10m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Front Affected Side)" },
+                    { type: "striker", position: "-25m 0m -10m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Rear Affected Side)" }
                 ],
                 "internal_fire": [
-                    { type: "mprv", position: "20m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side/Entry)" },
-                    { type: "striker", position: "0m 0m -35m", rotation: "0 180deg 0", label: "Crash 2: Striker (Nose)" },
-                    { type: "striker", position: "20m 0m 30m", rotation: "0 45deg 0", label: "Crash 3: Striker (Starboard Front/Rear)" }
+                    { type: "mprv", position: "20m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side / Entry)" },
+                    { type: "striker", position: "0m 0m 35m", rotation: "0 180deg 0", label: "Crash 2: Striker (Nose)" },
+                    { type: "striker", position: "-20m 0m 20m", rotation: "0 45deg 0", label: "Crash 3: Striker (Starboard Front / Rear)" }
                 ],
                 "external_fire": [
-                    { type: "mprv", position: "20m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
-                    { type: "striker", position: "0m 0m -35m", rotation: "0 180deg 0", label: "Crash 2: Striker (Nose)" },
-                    { type: "striker", position: "-25m 0m 20m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Firefighting Side/Rear)" }
+                    { type: "mprv", position: "20m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "0m 0m 35m", rotation: "0 180deg 0", label: "Crash 2: Striker (Nose)" },
+                    { type: "striker", position: "-25m 0m -20m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Firefighting Side/Rear)" }
                 ]
             },
             "Piper PA-18 Super Cub": {
                 "engine_fire": [
-                    { type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }
+                    { type: "mprv", position: "0m 0m 10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }
                 ],
                 "wheel_fire": [
-                    { type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }
+                    { type: "mprv", position: "0m 0m 10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }
                 ],
                 "internal_fire": [
-                    { type: "mprv", position: "-10m 0m -10m", rotation: "0 -135deg 0", label: "Crash 1: MPRV (Upwind)" }
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV (Upwind)" }
                 ],
                 "external_fire": [
-                    { type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }
+                    { type: "mprv", position: "0m 0m 10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }
+                ]
+            },
+            "DHC-1 Chipmunk": {
+                "engine_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "wheel_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "internal_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "external_fire": [
+                    { type: "mprv", position: "10m 0m 10m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-10m 0m 10m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ]
+            },
+            "Douglas C-47 Dakota": {
+                "engine_fire": [
+                    { type: "mprv", position: "15m 0m 15m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-15m 0m 15m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "wheel_fire": [
+                    { type: "mprv", position: "15m 0m 15m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-15m 0m 15m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "internal_fire": [
+                    { type: "mprv", position: "15m 0m 15m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-15m 0m 15m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
+                ],
+                "external_fire": [
+                    { type: "mprv", position: "15m 0m 15m", rotation: "0 225deg 0", label: "Crash 1: MPRV 1" },
+                    { type: "mprv", position: "-15m 0m 15m", rotation: "0 -225deg 0", label: "Crash 2: MPRV 2" }
                 ]
             }
         };
@@ -290,7 +328,7 @@
             { name: "Boeing 787", type: "civilian", file: "boeing_787", ios_file: "Boeing_787", arff_cat: "9", fuel: "126k L", crew: "2", pax: "330", span: "60.1m", mtow: "228t", doors: "8 Main Exit Doors", danger: "Li-Ion Batteries.", note: "Composite structure.", batt: "Fwd & Aft E/E Bays", pdf: "B787.pdf" },
             { name: "Bombardier Global 7500", type: "civilian", file: "bombardier_global_7500", ios_file: "Bombardier_Global_7500", arff_cat: "4", fuel: "21k L", crew: "2", pax: "19", span: "31.7m", mtow: "52t", doors: "1 Main Fwd", danger: "Rear engines.", note: "Ultra-long range.", batt: "Under fwd cabin floor", pdf: "Global7500.pdf" },
             { name: "Dash 8 Q400", type: "civilian", file: "bombardier_dash_q400_-_qantas_link", ios_file: "Bombardier_Dash_Q400_-_Qantas_Link", arff_cat: "5", fuel: "6.5k L", crew: "2", pax: "82", span: "28.4m", mtow: "29t", doors: "2 Fwd, 2 Aft", danger: "Propeller arc.", note: "Turboprop.", batt: "Rear Baggage RHS" },
-            { name: "DC-3", type: "civilian", file: "mcdonnell_douglas_dc-3", ios_file: "McDonnell_Douglas_DC-3", arff_cat: "3", fuel: "3k L", crew: "2", pax: "28", span: "29m", mtow: "11.4t", doors: "1 Aft Door", danger: "Propeller hazard.", note: "Vintage radial props.", batt: "Aft of Pilot RHS", pdf: "AQRC-A08-Dakota-V1.2.pdf" },
+            { name: "DC-3", type: "civilian", file: "mcdonnell_douglas_dc-3", ios_file: "McDonnell_Douglas_DC-3", arff_cat: "3", fuel: "3k L", crew: "2", pax: "28", span: "29m", mtow: "11.4t", doors: "1 Aft Door", danger: "Propeller hazard.", note: "Vintage radial props.", batt: "Aft of Pilot RHS", pdf: "ATTP-A08-Dakota-V1.1.pdf" },
             { name: "DC-9", type: "civilian", file: "mcdonnell_douglas_dc-9-50", ios_file: "McDonnell_Douglas_DC-9-50", arff_cat: "6", fuel: "14k L", crew: "2", pax: "135", span: "28.5m", mtow: "55t", doors: "2 Main, 2 Overwing", danger: "Rear engines.", note: "T-tail regional.", batt: "Nose E/E bay", pdf : "DC9.pdf" },
             { name: "DHC-7", type: "civilian", file: "de_havilland_canada_dhc-7", ios_file: "de_Havilland_Canada_DHC-7", arff_cat: "4", fuel: "5.5k L", crew: "2", pax: "50", span: "28.3m", mtow: "20t", doors: "2 Main (Aft)", danger: "4x Propeller arcs.", note: "STOL specialist.", batt: "Tail cone" },
             { name: "ERJ 135", type: "civilian", file: "embraer_erj_135", ios_file: "Embraer_ERJ_135", arff_cat: "6", fuel: "5k L", crew: "2", pax: "37", span: "20m", mtow: "19t", doors: "1 Fwd, 1 Svc", danger: "Aft engine.", note: "Regional jet.", batt: "Rear Fuselage LHS" },
@@ -302,16 +340,16 @@
             { name: "MD-11", type: "civilian", file: "md-11", ios_file: "MD-11", arff_cat: "9", fuel: "146k L", crew: "3", pax: "410", span: "51.7m", mtow: "286t", doors: "10 Main Doors", danger: "Tail engine.", note: "High landing speed.", batt: "Fwd Electronics Bay" },
             { name: "MD-90", type: "civilian", file: "md90", ios_file: "MD90", arff_cat: "6", fuel: "17k L", crew: "2", pax: "172", span: "32.8m", mtow: "70.7t", doors: "2 Main, 4 Overwing", danger: "Rear engines.", note: "MD-80 derivative.", batt: "Aft of nose wheel" },
             { name: "A-10 Thunderbolt", type: "military", file: "a10", ios_file: "A10", crew: "1", weapons: "30mm GAU-8", span: "17.5m", mtow: "22.7t", danger: "Rear Intake, Gun blast.", note: "Titanium armor.", pdf : "A10.pdf" },
-            { name: "A400M Atlas", type: "military", file: "A400M", ios_file: "a400m", crew: "3", pax: "116", weapons: "Cargo", span: "42.4m", mtow: "141t", danger: "4x Propellers.", note: "Tactical heavy.", pdf: "A400M.pdf" },
+            { name: "A400M Atlas", type: "military", file: "A400M", ios_file: "a400m", crew: "3", pax: "116", weapons: "Cargo", span: "42.4m", mtow: "141t", danger: "4x Propellers.", note: "Tactical heavy.", pdf: "ATTP-A01-A400M-(Pax)-V1.2.pdf" },
             { name: "B-1 Lancer", type: "military", file: "B1", ios_file: "B1", crew: "4", weapons: "Internal", span: "41.8m", mtow: "216t", danger: "Sweep Wing.", note: "Supersonic bomber.", pdf : "B1.pdf" },
             { name: "B-2 Spirit", type: "military", file: "B2", ios_file: "b2", crew: "2", weapons: "Internal", span: "52.4m", mtow: "170t", danger: "Dorsal Intake.", note: "Stealth composite.", pdf : "B2.pdf" },
             { name: "B-52 Stratofortress", type: "military", file: "boeing_b-52_stratofortress", ios_file: "Boeing_B-52_Stratofortress", crew: "5", weapons: "Internal", span: "56.4m", mtow: "220t", danger: "8x Engines.", note: "Strategic heavy.", pdf : "B52.pdf" },
             { name: "BAE Hawk", type: "military", file: "Hawk", ios_file: "hawk", crew: "2", weapons: "30mm Pod", span: "9.9m", mtow: "9.1t", danger: "Intake, Seats.", note: "Advanced trainer.", pdf : "Hawk.pdf" },
             { name: "C-130 Hercules", type: "military", file: "c130j", ios_file: "c130j", crew: "3", pax: "92", span: "40.4m", mtow: "70.3t", danger: "4x Propellers.", note: "Tactical airlifter.", pdf: "C130.pdf" },
-            { name: "C-17A Globemaster", type: "military", file: "c17a", ios_file: "C17A", crew: "3", pax: "102", span: "51.7m", mtow: "265t", danger: "Reverse thrust.", note: "Tactical airlifter.", pdf: "C17.pdf" },
+            { name: "C-17A Globemaster", type: "military", file: "c17a", ios_file: "C17A", crew: "3", pax: "102", span: "51.7m", mtow: "265t", danger: "Reverse thrust.", note: "Tactical airlifter.", pdf: "ATTP-A06-C17-(Cargo)-V1.2.pdf" },
             { name: "C-5 Galaxy", type: "military", file: "c5_galaxy_model", ios_file: "C5_galaxy_model", crew: "7", pax: "73", span: "67.9m", mtow: "381t", danger: "Massive suction.", note: "Strategic heavy lifter.", pdf: "C5.pdf" },
-            { name: "DHC-1 Chipmunk", type: "military", file: "de_havilland_canada_dhc-1_chipmunk", ios_file: "de_Havilland_Canada_DHC-1_Chipmunk", crew: "2", span: "10.4m", mtow: "0.9t", danger: "Propeller arc.", note: "Classic trainer.", pdf: "AQRC-A07-Chipmunk-V1.2.pdf" },
-            { name: "Douglas C-47 Dakota", type: "military", file: "mcdonnell_douglas_dc-3", ios_file: "G-PIGY", arff_cat: "3", crew: "2", span: "29m", mtow: "11.4t", danger: "Propeller hazard.", note: "Heritage DC-3 variant.", pdf: "AQRC-A08-Dakota-V1.2.pdf" },
+            { name: "DHC-1 Chipmunk", type: "military", file: "de_havilland_canada_dhc-1_chipmunk", ios_file: "de_Havilland_Canada_DHC-1_Chipmunk", crew: "2", span: "10.4m", mtow: "0.9t", danger: "Propeller arc.", note: "Classic trainer.", pdf: "ATTP-A07-Chipmunk-V1.1.pdf" },
+            { name: "Douglas C-47 Dakota", type: "military", file: "mcdonnell_douglas_dc-3", ios_file: "G-PIGY", arff_cat: "3", crew: "2", span: "29m", mtow: "11.4t", danger: "Propeller hazard.", note: "Heritage DC-3 variant.", pdf: "ATTP-A08-Dakota-V1.1.pdf" },
             { name: "F/A-18 Hornet", type: "military", file: "F18Hornet", ios_file: "F18Hornet", crew: "1/2", weapons: "Multi-role", span: "12.3m", mtow: "23.5t", danger: "Carrier gear.", note: "Folding wings.", pdf : "FA18.pdf" },
             { name: "F-15 Strike Eagle", type: "military", file: "F15", ios_file: "f15", crew: "1/2", weapons: "Multi-role", span: "13m", mtow: "36.7t", danger: "Hot exhaust.", note: "Air superiority.", pdf : "F15.pdf" },
             { name: "F-16 Falcon", type: "military", file: "F16", ios_file: "f16", crew: "1", weapons: "20mm/Msls", span: "9.9m", mtow: "19.2t", danger: "Ventral Intake, Hydrazine.", note: "Toxic EPU hazard.", pdf : "F16.pdf"},
@@ -372,7 +410,7 @@
             { name: "PBY-5A Catalina", type: "military", file: "pby-5a_catalina_war_thunder", ios_file: "PBY-5A_Catalina_War_Thunder" },
             { name: "Piaggio P.166", type: "civilian", file: "piaggio_p.166", ios_file: "Piaggio_P" },
             { name: "Pilatus PC-24", type: "civilian", file: "pilatus_pc-24", ios_file: "Pilatus_PC-24" },
-            { name: "Piper PA-18 Super Cub", type: "civilian", file: "piper_pa-18_super_cub_philsca_edition", ios_file: "PIPER_PA-18_SUPER_CUB_PHILSCA_EDITION" },
+            { name: "Piper PA-18 Super Cub", type: "civilian", file: "piper_pa-18_super_cub_philsca_edition", ios_file: "PIPER_PA-18_SUPER_CUB_PHILSCA_EDITION", pdf: "ATTP-A03-PA-28-Cherokee-1-MPRV-V1.1.pdf" },
             { name: "SA340/341/342 Gazelle", type: "rotary", file: "sud-aviation_sa340341342_gazelle", ios_file: "Sud-Aviation_SA340341342_Gazelle" },
             { name: "Seafire FR 47", type: "military", file: "seafire_fr_47_war_thunder", ios_file: "Seafire_FR_47_War_Thunder", pdf: "Seafire.pdf" },
             { name: "Soko J-20 Kraguj", type: "military", file: "soko_j-20_kraguj", ios_file: "Soko_J-20_Kraguj" }
@@ -393,7 +431,7 @@
         async function openPdfModal() {
             if (!activePdfFile) return;
             const pdfPath = `PDF/${activePdfFile}`;
-            pdfModalTitle.textContent = `AQRC: ${currentAssetName}`;
+            pdfModalTitle.textContent = `TTP: ${currentAssetName}`;
             pdfModal.classList.add('active');
             pdfLoading.style.display = 'block';
             try {
@@ -548,6 +586,8 @@
                         class="tactical-model"
                         src="models/${vehicle.type}.glb" 
                         camera-controls="false" 
+                        disable-zoom
+                        disable-pan
                         interaction-prompt="none" 
                         orientation="${vehicle.rotation}">
                     </model-viewer>
