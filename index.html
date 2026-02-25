@@ -77,9 +77,11 @@
         .hazard-box { border-left: 4px solid var(--raf-red); padding: 15px; background: rgba(194, 24, 7, 0.15); font-size: 15px; color: #ffcccc; }
         model-viewer { width: 100vw; height: 100vh; background-color: #1a202c; }
         #ar-button { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--raf-red); color: white; border: none; padding: 16px 32px; border-radius: 50px; font-weight: 700; cursor: pointer; z-index: 50; text-transform: uppercase; font-size: 12px; }
-        .hotspot { background: var(--tactical-yellow); border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5); width: 14px; height: 14px; cursor: pointer; transition: opacity 0.3s; display: none; }
+        .hotspot { background: transparent; border: none; box-shadow: none; display: none; pointer-events: none; }
         .hotspot.visible { display: block; }
-        .hotspot-annotation { background: #fff; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #000; font-size: 12px; font-weight: bold; padding: 4px 8px; position: absolute; transform: translate(10px, -20px); white-space: nowrap; pointer-events: none; }
+        .hotspot-annotation { background: #fff; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #000; font-size: 12px; font-weight: bold; padding: 4px 8px; position: absolute; white-space: nowrap; pointer-events: none; }
+        .tactical-vehicle { width: 250px; height: 150px; pointer-events: none; }
+        .tactical-model { width: 100%; height: 100%; background: transparent; }
     </style>
 </head>
 <body>
@@ -164,16 +166,71 @@
     </div>
     
     <model-viewer id="main-viewer" ar ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="2">
-        <button class="hotspot group-rotary" slot="hotspot-1" data-position="-15.07m 13.01m -36.07m" data-normal="-0.87m 0.40m -0.27m"><div class="hotspot-annotation">Battery Bay</div></button>
-        <button class="hotspot group-rotary" slot="hotspot-2" data-position="-17.96m 9.45m 9.23m" data-normal="-0.82m -0.56m -0.01m"><div class="hotspot-annotation">Flares / Chaff</div></button>
-        <button class="hotspot group-rotary" slot="hotspot-3" data-position="11.56m 16.92m 36.00m" data-normal="0.99m 0.05m -0.00m"><div class="hotspot-annotation">Ramp Control Panel</div></button>
-        <button class="hotspot group-a10" slot="hotspot-8" data-position="-5.989m 1.695m 7.950m" data-normal="0m 0m 1m"><div class="hotspot-annotation">Main Gun (GAU-8)</div></button>
-        <button class="hotspot group-a10" slot="hotspot-9" data-position="-5.603m 2.485m -3.850m" data-normal="1m 0m 0m"><div class="hotspot-annotation">APU Exhaust</div></button>
-        <button class="hotspot group-a10" slot="hotspot-10" data-position="-5.442m 2.198m 5.058m" data-normal="1m 0m 0m"><div class="hotspot-annotation">Battery Access</div></button>
         <button slot="ar-button" id="ar-button">View in AR</button>
     </model-viewer>
     
     <script>
+        const tacticalDeployments = {
+            "A400M Atlas": {
+                "engine_fire": [
+                    { type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "-25m 0m 10m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Dominant)" },
+                    { type: "striker", position: "15m 0m -25m", rotation: "0 135deg 0", label: "Crash 3: Striker (Front of Engine)" }
+                ],
+                "wheel_fire": [
+                    { type: "mprv", position: "20m 0m 0m", rotation: "0 90deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "-20m 0m 0m", rotation: "0 -90deg 0", label: "Crash 2: Striker (Opposite Undercarriage)" },
+                    { type: "striker", position: "-20m 0m -10m", rotation: "0 -90deg 0", label: "Crash 3: Striker (Dominant)" }
+                ],
+                "internal_fire": [
+                    { type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "0m 0m -30m", rotation: "0 180deg 0", label: "Crash 2: Striker (Nose/Provide Cover)" },
+                    { type: "striker", position: "0m 0m 30m", rotation: "0 0deg 0", label: "Crash 3: Striker (Rear/Ramp)" }
+                ],
+                "external_fire": [
+                    { type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "-20m 0m -15m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Front Affected Side)" },
+                    { type: "striker", position: "-20m 0m 15m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Rear Affected Side)" }
+                ]
+            },
+            "C-17A Globemaster": {
+                "engine_fire": [
+                    { type: "mprv", position: "20m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "-25m 0m -15m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Front of Engine)" },
+                    { type: "striker", position: "-25m 0m 15m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Front or Rear Engine)" }
+                ],
+                "wheel_fire": [
+                    { type: "mprv", position: "20m 0m 0m", rotation: "0 90deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "-25m 0m -10m", rotation: "0 -45deg 0", label: "Crash 2: Striker (Front Affected Side)" },
+                    { type: "striker", position: "-25m 0m 10m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Rear Affected Side)" }
+                ],
+                "internal_fire": [
+                    { type: "mprv", position: "20m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side/Entry)" },
+                    { type: "striker", position: "0m 0m -35m", rotation: "0 180deg 0", label: "Crash 2: Striker (Nose)" },
+                    { type: "striker", position: "20m 0m 30m", rotation: "0 45deg 0", label: "Crash 3: Striker (Starboard Front/Rear)" }
+                ],
+                "external_fire": [
+                    { type: "mprv", position: "20m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV (Rescue Side)" },
+                    { type: "striker", position: "0m 0m -35m", rotation: "0 180deg 0", label: "Crash 2: Striker (Nose)" },
+                    { type: "striker", position: "-25m 0m 20m", rotation: "0 -135deg 0", label: "Crash 3: Striker (Firefighting Side/Rear)" }
+                ]
+            },
+            "Piper PA-18 Super Cub": {
+                "engine_fire": [
+                    { type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }
+                ],
+                "wheel_fire": [
+                    { type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }
+                ],
+                "internal_fire": [
+                    { type: "mprv", position: "-10m 0m -10m", rotation: "0 -135deg 0", label: "Crash 1: MPRV (Upwind)" }
+                ],
+                "external_fire": [
+                    { type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV (Nose)" }
+                ]
+            }
+        };
+
         function enterApp() {
             const startScreen = document.getElementById('start-screen');
             if (startScreen) {
@@ -211,13 +268,127 @@
         let currentAssetName = "";
         
         const rawData = [
-            { name: "C-17A Globemaster", type: "military", file: "c17a", ios_file: "C17A", crew: "3", pax: "102", span: "51.7m", mtow: "265t", danger: "Reverse thrust.", note: "Tactical airlifter.", pdf: "C17.pdf" }
+            { name: "Airbus A220", type: "civilian", file: "a220", ios_file: "A220", arff_cat: "6", fuel: "21k L", crew: "2", pax: "160", span: "35.1m", mtow: "70.9t", doors: "4 Main Doors", danger: "Engine Intake (5m).", note: "Modern efficient narrow-body.", batt: "Aft of nose wheel (L)", pdf: "A220.pdf" },
+            { name: "Airbus A318", type: "civilian", file: "airbus_a318-122", ios_file: "Airbus_A318-122", arff_cat: "6", fuel: "24k L", crew: "2", pax: "132", span: "34.1m", mtow: "68t", doors: "4 Main, 2 Overwing", danger: "Engine Intake (5m), Exhaust (50m).", note: "Smallest member of the A320 family.", batt: "Aft of Nose Gear (L)", pdf: "A318.pdf" },
+            { name: "Airbus A319", type: "civilian", file: "airbus_a319", ios_file: "Airbus_A319", arff_cat: "6", fuel: "24k L", crew: "2", pax: "156", span: "34.1m", mtow: "75.5t", doors: "4 Main, 2 Overwing", danger: "Eng Intake (5m).", note: "Battery in Fwd E/E bay.", batt: "Aft of Nose Gear (L)", pdf: "A319.pdf" },
+            { name: "Airbus A320", type: "civilian", file: "airbus_a320", ios_file: "Airbus_A320", arff_cat: "6", fuel: "27k L", crew: "2", pax: "186", span: "35.8m", mtow: "78t", doors: "4 Main, 4 Overwing", danger: "Eng Intake (5m).", note: "Oxygen fwd of wing.", batt: "Lower Fwd Electronics Bay", pdf: "A320.pdf" },
+            { name: "Airbus A321", type: "civilian", file: "airbus_a321", ios_file: "Airbus_A321", arff_cat: "7", fuel: "29k L", crew: "2", pax: "230", span: "35.8m", mtow: "93.5t", doors: "8 Main Doors", danger: "Tail strike risk.", note: "Stretched fuselage.", batt: "Aft of nose wheel", pdf: "A321.pdf"},
+            { name: "Airbus A330", type: "civilian", file: "airbus_a330-200", ios_file: "Airbus_A330-200", arff_cat: "8", fuel: "139k L", crew: "2", pax: "293", span: "60.3m", mtow: "242t", doors: "8 Main Doors", danger: "Widebody Intake (8m).", note: "Twin-aisle.", batt: "Fwd Main Gear Bay", pdf : "A330.pdf" },
+            { name: "Airbus A340", type: "civilian", file: "airbus_a340", ios_file: "airbus_a340", arff_cat: "9", fuel: "215k L", crew: "2", pax: "375", span: "63.4m", mtow: "380t", doors: "8 Main Doors", danger: "4x Eng suction.", note: "Hydraulic reservoir in wing root.", batt: "Lower Cargo Bay Fwd",pdf : "A340.pdf" },
+            { name: "Airbus A350", type: "civilian", file: "airbus_a350-1000", ios_file: "Airbus_A350-1000", arff_cat: "9", fuel: "156k L", crew: "2", pax: "480", span: "64.75m", mtow: "319t", doors: "8 Main Doors", danger: "Massive engine suction (10m+).", note: "Large composite widebody.", batt: "Under floor fwd of wing", pdf: "A350.pdf" },
+            { name: "Airbus A380", type: "civilian", file: "airbus_a380", ios_file: "Airbus_A380", arff_cat: "10", fuel: "320k L", crew: "2", pax: "853", span: "79.7m", mtow: "575t", doors: "16 Main Doors", danger: "Intake (10m).", note: "Super-heavy.", batt: "Multiple (Fwd/Aft Gear Bays)", pdf: "A380.pdf" },
+            { name: "ATR-72", type: "civilian", file: "atr-72", ios_file: "ATR-72", arff_cat: "5", fuel: "5k L", crew: "2", pax: "78", span: "27.1m", mtow: "23t", doors: "2 Fwd, 2 Aft", danger: "Propeller arc.", note: "Rear pax entry.", batt: "Aft Fuselage RHS", pdf : "ATR.pdf" },
+            { name: "Boeing 707-320B", type: "civilian", file: "boeing_707-320b", ios_file: "Boeing_707-320B", arff_cat: "7", fuel: "90k L", crew: "3", pax: "189", span: "44.4m", mtow: "151t", doors: "4 Main, 4 Overwing", danger: "Low engine clearance.", note: "Vintage quad-jet.", batt: "Fwd Belly RHS", pdf: "B707.pdf" },
+            { name: "Boeing 737-800", type: "civilian", file: "boeing_737-800", ios_file: "Boeing_737-800", arff_cat: "6", fuel: "26k L", crew: "2", pax: "189", span: "35.8m", mtow: "79t", doors: "4 Main, 4 Overwing", danger: "Intake (4m).", note: "APU exhaust at tail.", batt: "Electronics Bay Fwd of Wing", pdf: "B737.pdf" },
+            { name: "Boeing 737 MAX", type: "civilian", file: "boeing_737max", ios_file: "Boeing_737Max", arff_cat: "6", fuel: "26k L", crew: "2", pax: "200", span: "35.9m", mtow: "82t", doors: "4 Main, 4 Overwing", danger: "LEAP Engine Intake.", note: "Software variant protocol.", batt: "E/E Bay (Nose)", pdf: "B737.pdf" },
+            { name: "Boeing 747-400", type: "civilian", file: "boeing_747-400", ios_file: "Boeing_747-400", arff_cat: "10", fuel: "216k L", crew: "3", pax: "660", span: "64.4m", mtow: "397t", doors: "10 Main, 2 Upper", danger: "Jumbo jet blast.", note: "Upper deck height.", batt: "Fwd Landing Gear Bay", pdf: "B747.pdf" },
+            { name: "Boeing 747-8F", type: "civilian", file: "boeing_747-8f", ios_file: "Boeing_747-8F", arff_cat: "10", fuel: "226k L", crew: "2", pax: "0", span: "68.4m", mtow: "447t", doors: "Nose/Side Cargo", danger: "Nose cargo door arc.", note: "Cargo fire hazard.", batt: "Nose Gear Well", pdf: "B747.pdf" },
+            { name: "Boeing 757-300", type: "civilian", file: "boeing_757-300", ios_file: "Boeing_757-300", arff_cat: "7", fuel: "43k L", crew: "2", pax: "295", span: "38m", mtow: "123t", doors: "6 Main, 4 Overwing", danger: "High landing speed.", note: "Single-aisle long body.", batt: "Electronics Bay (Left)", pdf: "B757.pdf" },
+            { name: "Boeing 767-200", type: "civilian", file: "boeing_767-200", ios_file: "Boeing_767-200", arff_cat: "8", fuel: "63k L", crew: "2", pax: "250", span: "47.6m", mtow: "179t", doors: "4 Main, 2 Overwing", danger: "Intake suction.", note: "Mid-size widebody.", batt: "Fwd Cargo Sidewall", pdf: "B767.pdf" },
+            { name: "Boeing 767-300", type: "civilian", file: "boeing_767-300", ios_file: "Boeing_767-300", arff_cat: "8", fuel: "91k L", crew: "2", pax: "350", span: "47.6m", mtow: "187t", doors: "4 Main, 4 Overwing", danger: "Large intakes.", note: "ETOPS certified.", batt: "Fwd Left Gear Bay", pdf: "B767.pdf" },
+            { name: "Boeing 777", type: "civilian", file: "emirates_boeing_777-200", ios_file: "Emirates_Boeing_777-200", arff_cat: "9", fuel: "117k L", crew: "2", pax: "440", span: "60.9m", mtow: "297t", doors: "10 Main Doors", danger: "GE90 Intake (10m).", note: "High capacity.", batt: "MEC fwd of wing", pdf: "B777.pdf" },
+            { name: "Boeing 787", type: "civilian", file: "boeing_787", ios_file: "Boeing_787", arff_cat: "9", fuel: "126k L", crew: "2", pax: "330", span: "60.1m", mtow: "228t", doors: "8 Main Exit Doors", danger: "Li-Ion Batteries.", note: "Composite structure.", batt: "Fwd & Aft E/E Bays", pdf: "B787.pdf" },
+            { name: "Bombardier Global 7500", type: "civilian", file: "bombardier_global_7500", ios_file: "Bombardier_Global_7500", arff_cat: "4", fuel: "21k L", crew: "2", pax: "19", span: "31.7m", mtow: "52t", doors: "1 Main Fwd", danger: "Rear engines.", note: "Ultra-long range.", batt: "Under fwd cabin floor", pdf: "Global7500.pdf" },
+            { name: "Dash 8 Q400", type: "civilian", file: "bombardier_dash_q400_-_qantas_link", ios_file: "Bombardier_Dash_Q400_-_Qantas_Link", arff_cat: "5", fuel: "6.5k L", crew: "2", pax: "82", span: "28.4m", mtow: "29t", doors: "2 Fwd, 2 Aft", danger: "Propeller arc.", note: "Turboprop.", batt: "Rear Baggage RHS" },
+            { name: "DC-3", type: "civilian", file: "mcdonnell_douglas_dc-3", ios_file: "McDonnell_Douglas_DC-3", arff_cat: "3", fuel: "3k L", crew: "2", pax: "28", span: "29m", mtow: "11.4t", doors: "1 Aft Door", danger: "Propeller hazard.", note: "Vintage radial props.", batt: "Aft of Pilot RHS", pdf: "AQRC-A08-Dakota-V1.2.pdf" },
+            { name: "DC-9", type: "civilian", file: "mcdonnell_douglas_dc-9-50", ios_file: "McDonnell_Douglas_DC-9-50", arff_cat: "6", fuel: "14k L", crew: "2", pax: "135", span: "28.5m", mtow: "55t", doors: "2 Main, 2 Overwing", danger: "Rear engines.", note: "T-tail regional.", batt: "Nose E/E bay", pdf : "DC9.pdf" },
+            { name: "DHC-7", type: "civilian", file: "de_havilland_canada_dhc-7", ios_file: "de_Havilland_Canada_DHC-7", arff_cat: "4", fuel: "5.5k L", crew: "2", pax: "50", span: "28.3m", mtow: "20t", doors: "2 Main (Aft)", danger: "4x Propeller arcs.", note: "STOL specialist.", batt: "Tail cone" },
+            { name: "ERJ 135", type: "civilian", file: "embraer_erj_135", ios_file: "Embraer_ERJ_135", arff_cat: "6", fuel: "5k L", crew: "2", pax: "37", span: "20m", mtow: "19t", doors: "1 Fwd, 1 Svc", danger: "Aft engine.", note: "Regional jet.", batt: "Rear Fuselage LHS" },
+            { name: "ERJ 145", type: "civilian", file: "embraer_erj_145", ios_file: "Embraer_ERJ_145", arff_cat: "6", fuel: "6k L", crew: "2", pax: "50", span: "20m", mtow: "21t", doors: "1 Fwd, 1 Svc", danger: "Aft engine.", note: "Regional standard.", batt: "Aft Utility Bay" },
+            { name: "Falcon 50", type: "civilian", file: "falcon50", ios_file: "falcon50", arff_cat: "4", fuel: "7k L", crew: "2", pax: "9", span: "18.8m", mtow: "18.5t", doors: "1 Fwd, 1 Overwing", danger: "Center engine.", note: "Tri-jet.", batt: "Aft Service Compartment" },
+            { name: "King Air", type: "civilian", file: "super king air", ios_file: "SUPER KING AIR", arff_cat: "3", fuel: "2k L", crew: "2", pax: "11", span: "17.6m", mtow: "5.6t", doors: "1 Aft Door", danger: "Propeller arc.", note: "Utility turboprop.", batt: "Engine Nacelles", pdf: "AQRC-A22-King-Air.pdf" },
+            { name: "Learjet 35A", type: "civilian", file: "bombardier_learjet_35a", ios_file: "Bombardier_Learjet_35A", arff_cat: "3", fuel: "3.5k L", crew: "2", pax: "8", span: "12m", mtow: "8.3t", doors: "1 Clamshell", danger: "Tip tanks.", note: "Low ground clearance.", batt: "Aft Utility RHS" },
+            { name: "Learjet 60", type: "civilian", file: "bombardier_learjet_60", ios_file: "Bombardier_Learjet_60", arff_cat: "3", fuel: "4k L", crew: "2", pax: "10", span: "13.3m", mtow: "10.6t", doors: "1 Clamshell", danger: "Aft engines.", note: "Mid-size biz jet.", batt: "Tail cone" },
+            { name: "MD-11", type: "civilian", file: "md-11", ios_file: "MD-11", arff_cat: "9", fuel: "146k L", crew: "3", pax: "410", span: "51.7m", mtow: "286t", doors: "10 Main Doors", danger: "Tail engine.", note: "High landing speed.", batt: "Fwd Electronics Bay" },
+            { name: "MD-90", type: "civilian", file: "md90", ios_file: "MD90", arff_cat: "6", fuel: "17k L", crew: "2", pax: "172", span: "32.8m", mtow: "70.7t", doors: "2 Main, 4 Overwing", danger: "Rear engines.", note: "MD-80 derivative.", batt: "Aft of nose wheel" },
+            { name: "A-10 Thunderbolt", type: "military", file: "a10", ios_file: "A10", crew: "1", weapons: "30mm GAU-8", span: "17.5m", mtow: "22.7t", danger: "Rear Intake, Gun blast.", note: "Titanium armor.", pdf : "A10.pdf" },
+            { name: "A400M Atlas", type: "military", file: "A400M", ios_file: "a400m", crew: "3", pax: "116", weapons: "Cargo", span: "42.4m", mtow: "141t", danger: "4x Propellers.", note: "Tactical heavy.", pdf: "A400M.pdf" },
+            { name: "B-1 Lancer", type: "military", file: "B1", ios_file: "B1", crew: "4", weapons: "Internal", span: "41.8m", mtow: "216t", danger: "Sweep Wing.", note: "Supersonic bomber.", pdf : "B1.pdf" },
+            { name: "B-2 Spirit", type: "military", file: "B2", ios_file: "b2", crew: "2", weapons: "Internal", span: "52.4m", mtow: "170t", danger: "Dorsal Intake.", note: "Stealth composite.", pdf : "B2.pdf" },
+            { name: "B-52 Stratofortress", type: "military", file: "boeing_b-52_stratofortress", ios_file: "Boeing_B-52_Stratofortress", crew: "5", weapons: "Internal", span: "56.4m", mtow: "220t", danger: "8x Engines.", note: "Strategic heavy.", pdf : "B52.pdf" },
+            { name: "BAE Hawk", type: "military", file: "Hawk", ios_file: "hawk", crew: "2", weapons: "30mm Pod", span: "9.9m", mtow: "9.1t", danger: "Intake, Seats.", note: "Advanced trainer.", pdf : "Hawk.pdf" },
+            { name: "C-130 Hercules", type: "military", file: "c130j", ios_file: "c130j", crew: "3", pax: "92", span: "40.4m", mtow: "70.3t", danger: "4x Propellers.", note: "Tactical airlifter.", pdf: "C130.pdf" },
+            { name: "C-17A Globemaster", type: "military", file: "c17a", ios_file: "C17A", crew: "3", pax: "102", span: "51.7m", mtow: "265t", danger: "Reverse thrust.", note: "Tactical airlifter.", pdf: "C17.pdf" },
+            { name: "C-5 Galaxy", type: "military", file: "c5_galaxy_model", ios_file: "C5_galaxy_model", crew: "7", pax: "73", span: "67.9m", mtow: "381t", danger: "Massive suction.", note: "Strategic heavy lifter.", pdf: "C5.pdf" },
+            { name: "DHC-1 Chipmunk", type: "military", file: "de_havilland_canada_dhc-1_chipmunk", ios_file: "de_Havilland_Canada_DHC-1_Chipmunk", crew: "2", span: "10.4m", mtow: "0.9t", danger: "Propeller arc.", note: "Classic trainer.", pdf: "AQRC-A07-Chipmunk-V1.2.pdf" },
+            { name: "Douglas C-47 Dakota", type: "military", file: "mcdonnell_douglas_dc-3", ios_file: "G-PIGY", arff_cat: "3", crew: "2", span: "29m", mtow: "11.4t", danger: "Propeller hazard.", note: "Heritage DC-3 variant.", pdf: "AQRC-A08-Dakota-V1.2.pdf" },
+            { name: "F/A-18 Hornet", type: "military", file: "F18Hornet", ios_file: "F18Hornet", crew: "1/2", weapons: "Multi-role", span: "12.3m", mtow: "23.5t", danger: "Carrier gear.", note: "Folding wings.", pdf : "FA18.pdf" },
+            { name: "F-15 Strike Eagle", type: "military", file: "F15", ios_file: "f15", crew: "1/2", weapons: "Multi-role", span: "13m", mtow: "36.7t", danger: "Hot exhaust.", note: "Air superiority.", pdf : "F15.pdf" },
+            { name: "F-16 Falcon", type: "military", file: "F16", ios_file: "f16", crew: "1", weapons: "20mm/Msls", span: "9.9m", mtow: "19.2t", danger: "Ventral Intake, Hydrazine.", note: "Toxic EPU hazard.", pdf : "F16.pdf"},
+            { name: "F-22 Raptor", type: "military", file: "F22", ios_file: "f22", crew: "1", weapons: "Internal", span: "13.5m", mtow: "38t", danger: "LOX Systems.", note: "Stealth interceptor.", pdf : "F22.pdf" },
+            { name: "F-35 Lightning 2", type: "military", file: "f35", ios_file: "F35", crew: "1", weapons: "Internal", span: "10.7m", mtow: "31.7t", danger: "Eng Heat (1000C).", note: "Stealth composite.", pdf: "F35.pdf" },
+            { name: "Grob G 115 Tutor", type: "military", file: "Grob", ios_file: "grob", crew: "2", span: "10m", mtow: "0.99t", danger: "Propeller arc.", note: "Primary trainer.", pdf: "AQRC-A27-Grob-115E-Tutor.pdf" },
+            { name: "MiG-29 Fulcrum", type: "military", file: "Mig_29", ios_file: "MiG_29", crew: "1", weapons: "30mm/Msls", span: "11.3m", mtow: "18t", danger: "Hot exhaust.", note: "Eastern tactical.", pdf: "Mig29.pdf" },
+            { name: "Mirage 5F", type: "military", file: "dassault_mirage-5f", ios_file: "Dassault_Mirage-5F", crew: "1", weapons: "30mm DEFA", span: "8.2m", mtow: "13.7t", danger: "Intake suction.", note: "Ground-attack Mirage.", pdf: "Mirage5.pdf" },
+            { name: "Mirage 2000", type: "military", file: "dassault_mirage_2000_-_fighter_jet", ios_file: "Dassault_Mirage_2000_-_Fighter_Je", crew: "1", weapons: "Multi-role", span: "9.1m", mtow: "17t", danger: "Delta Wing Edge.", note: "French interceptor.", pdf : "Mirage2000.pdf" },
+            { name: "Mirage IIIE", type: "military", file: "dassault_mirage_iiie", ios_file: "Dassault_Mirage_IIIE", crew: "1", weapons: "30mm DEFA", span: "8.2m", mtow: "13.7t", danger: "Sharp edges.", note: "Vintage interceptor.", pdf: "MirageIII.pdf" },
+            { name: "NASA Orbiter", type: "civilian", file : "space_shuttle", ios_file: "Space-Shuttle", note: "Space Transportation System.", pdf : "Space Shuttle.pdf"},  
+            { name: "Rafale C", type: "military", file: "Rafale1", ios_file: "Dassault_Rafale_C_F3", crew: "1", weapons: "Multi-role", span: "10.9m", mtow: "24.5t", danger: "Ventral Intake.", note: "French air/sea.", pdf: "Rafale.pdf" },
+            { name: "C-141 Starlifter", type: "military", file: "c141", ios_file: "C141", crew: "5-7", span: "48.8m", mtow: "147t", danger: "Engine suction, T-tail height.", note: "Strategic airlifter.", pdf: "C141.pdf" },
+            { name: "F-117 Nighthawk", type: "military", file: "F117", ios_file: "Lockheed_F-117_nighthawk", crew: "1", weapons: "Internal Bay", span: "13.2m", mtow: "23.8t", danger: "RAM coating toxicity, sharp edges.", note: "Stealth attack aircraft.", pdf: "F117.pdf" },
+            { name: "Grumman C-2 Greyhound", type: "military", file: "grumman_c-2_greyhound", ios_file: "Grumman_C-2_Greyhound", crew: "2-4", pax: "26", span: "24.6m", mtow: "24.6t", danger: "Propeller arc, folding wings.", note: "Carrier onboard delivery.", pdf: "C2.pdf" },
+            { name: "P-3 Orion", type: "military", file: "lockheed_p-3_orion_vp-11", ios_file: "Lockheed_P-3_Orion_VP-11", crew: "11", span: "30.4m", mtow: "64.4t", danger: "4x Propellers, Sonobuoys.", note: "Maritime patrol/ASW.", pdf: "P3.pdf" },
+            { name: "Ka-50 Black Shark", type: "rotary", file: "helicopter_ka-50_3d_model", ios_file: "Helicopter_Ka-50_3D_model", crew: "1", weapons: "30mm/Rockets", span: "14.5m", mtow: "10.8t", danger: "Coaxial rotors, Ejection system.", note: "Single-seat attack helicopter.", pdf: "Ka50.pdf" },
+            { name: "Mi-8 Hip", type: "rotary", file: "mil_mi-8amtsh", ios_file: "Mil_Mi-8AMTSh", crew: "3", pax: "36", weapons: "Rockets/Guns", span: "21.3m", mtow: "13t", danger: "Main/Tail rotor arc.", note: "Armored assault transport.", pdf: "Mi8.pdf" },
+            { name: "Mi-24 Hind", type: "rotary", file: "hind_attack_helicopter", ios_file: "Hind_Attack_Helicopter", crew: "2-3", pax: "8", weapons: "12.7mm/Msls", span: "17.3m", mtow: "12t", danger: "Heavy rotor downwash.", note: "Gunship/Transport hybrid.", pdf: "Mi24.pdf" },
+            { name: "Mi-26 Halo", type: "rotary", file: "mi-26_soviet_helicopter", ios_file: "MI-26_Soviet_Helicopter", crew: "5", pax: "90", span: "32m", mtow: "56t", danger: "Massive static discharge.", note: "World's largest production helicopter.", pdf: "Mi26.pdf" },
+            { name: "Saab JAS 39 Gripen", type: "military", file: "saab_jas_39_gripen", ios_file: "Saab_JAS_39_Gripen", crew: "1", weapons: "AAMs", span: "8.4m", mtow: "14t", danger: "Canard pinch.", note: "Swedish tactical.", pdf: "JAS39.pdf" },
+            { name: "Shorts SC.7 Skyvan", type: "military", file: "Skyvan", ios_file: "skyvan", arff_cat: "4", crew: "2", pax: "19", span: "19.8m", mtow: "5.6t", danger: "Propeller arc.", note: "Military transport.", pdf: "AQRC-A47-SkyVan-V1.0.pdf" },
+            { name: "Typhoon", type: "military", file: "typhoon", ios_file: "Typhoon", crew: "1/2", weapons: "Multi-role", span: "10.9m", mtow: "23.5t", danger: "Canard pinch.", note: "Eurofighter tactical.", pdf: "AQRC-A28-Typhoon-V1.5.pdf" },
+            { name: "U-2 Dragon Lady", type: "military", file: "u2", ios_file: "U2", crew: "1", span: "31.4m", mtow: "18.1t", danger: "Bicycle gear.", note: "High altitude recon.", pdf: "U2.pdf" },
+            { name: "AH-1W SuperCobra", type: "rotary", file: "ah-1w_supercobra_attack_helicopter", ios_file: "AH-1W_Supercobra_Attack_Helicopter", crew: "2", weapons: "20mm/Rockets", span: "14.6m", mtow: "6.7t", danger: "Main/Tail Rotor arc.", note: "Attack specialist.", pdf: "AQRC-A37-Bell-212-Final.pdf" },
+            { name: "AH-64 Apache", type: "rotary", file: "ah-64d", ios_file: "Ah-64d", crew: "2", weapons: "30mm/Hellfire", span: "14.6m", mtow: "10.4t", danger: "Rotor arc.", note: "Heavy attack.", pdf: "AQRC-A33-Apache-AH64D-Final.pdf" },
+            { name: "SA330 Puma", type: "rotary", file: "puma", ios_file: "Puma", crew: "3", pax: "16", span: "15.0m", mtow: "7.4t", danger: "Main/Tail rotor arc.", note: "Medium lift utility.", pdf: "Puma2.pdf" },
+            { name: "CH-47 Chinook", type: "rotary", file: "chinook-2", ios_file: "Chinook-2", crew: "4", pax: "55", span: "18.3m", mtow: "22.7t", danger: "Tandem Rotors.", note: "Front rotor low.", pdf: "Chinook.pdf" },  
+            { name: "CH-53 Stallion", type: "rotary", file: "ch-53", ios_file: "CH-53", crew: "3", pax: "37", span: "24.1m", mtow: "33t", danger: "Massive static.", note: "Heavy lift.", pdf: "CH53.pdf" },
+            { name: "EC135 Juno", type: "rotary", file: "ec135", ios_file: "EC135", crew: "2", span: "10.2m", mtow: "2.9t", danger: "Fenestron arc.", note: "EMS standard.", pdf: "AQRC-A31-Juno-V1.3.pdf" },
+            { name: "EC145 Jupiter", type: "rotary", file: "ec145", ios_file: "EC145", crew: "3", span: "x", mtow: "x", danger: "Fenestron arc.", note: "EMS standard.", pdf: "EC145.pdf" },
+            { name: "EH101 Merlin MK2", type: "rotary", file: "merlin_mk2", ios_file: "Merlin_MK2", crew: "4", weapons: "Torpedos", span: "18.6m", mtow: "14.6t", danger: "3x Exhaust.", note: "ASW specialist.", pdf: "AQRC-A42-Merlin-Mk2-Final.pdf" },
+            { name: "MD 902 Explorer", type: "rotary", file: "md_helicopters_md-902_explorer", ios_file: "MD_Helicopters_MD-902_Explorer", crew: "1/2", span: "10.3m", mtow: "3t", danger: "NOTAR system.", note: "NOTAR safety system.", pdf: "AQRC-Explorer.pdf" },
+            { name: "MH-6 Little Bird", type: "rotary", file: "mh6", ios_file: "MH6", crew: "2", weapons: "Gun/Rockets", span: "8.3m", mtow: "1.6t", danger: "Main rotor height.", note: "SOF transport.", pdf : "MH6.pdf"},
+            { name: "NH90", type: "rotary", file: "nh90", ios_file: "NH90", crew: "3", pax: "20", span: "16.3m", mtow: "10.6t", danger: "Composite dust.", note: "Modern tactical transport.", pdf: "NH90 - Helicopter.pdf" },
+            { name: "OH-58 Kiowa", type: "rotary", file: "kiowa", ios_file: "Kiaowa", crew: "2", pax: "0", weapons: "Gun/Rockets", span: "10.7m", mtow: "2.5t", danger: "Mast-Mounted Sight (MMS) hazard, Tail rotor.", note: "Armed scout helicopter.", cutin: "Side clamshell windows.", pdf: "Kiowa.pdf" },
+            { name: "SA341 Gazelle", type: "rotary", file: "gazelle", ios_file: "Gazelle", crew: "2", weapons: "Missile/Gun", span: "10.5m", mtow: "1.8t", danger: "Fenestron arc.", note: "Observation.", pdf : "Gazelle.pdf" },
+            { name: "UH-60 Blackhawk", type: "rotary", file: "uh60", ios_file: "Uh60", crew: "4", pax: "11", span: "16.3m", mtow: "10.6t", danger: "Rotor arc.", note: "Spec Ops Utility.", pdf: "AQRC-A20-Sikorsky-S76-C-V1.pdf" },
+            { name: "USMC UH-1Y Venom", type: "rotary", file: "usmc_uh-1y_venom", ios_file: "USMC_UH-1Y_Venom", crew: "2", weapons: "Rockets", span: "14.8m", mtow: "8.3t", danger: "4-blade system.", note: "Marine utility.", pdf: "AQRC-A37-Bell-212-Final.pdf" },
+            { name: "V-22 Osprey", type: "rotary", file: "v-22_osprey", ios_file: "V-22_Osprey", crew: "4", pax: "24", span: "14m", mtow: "27.4t", danger: "Proprotor arc.", note: "VTOL capability.", pdf : "V22.pdf" },
+            { name: "MQ-9 Reaper", type: "drone", file: "mq9", ios_file: "MQ9", crew: "Unmanned", pax: "0", weapons: "Hellfire/GBU", span: "20.1m", mtow: "4.7t", danger: "Pusher Propeller arc.", note: "Armed surveillance.", cutin: "N/A - Unmanned." },
+            { name: "Watchkeeper WK450", type: "drone", file: "watchkeeper", ios_file: "Watchkeeper", crew: "Remote", pax: "0", span: "10.5m", mtow: "0.45t", danger: "Laser Radiation, Fuel (Petrol), Pitot heat.", note: "UK ISTAR UAV. Dual payload sensors.", batt: "Mid-fuselage access", pdf: "Watchkeeper.pdf" },
+            { name: "QinetiQ Banshee", type: "drone", file: "qinetiq_banshee_flight_military_drone", ios_file: "QinetiQ_Banshee_Flight_Military_Drone", crew: "Remote", pax: "0", weapons: "Target Payload", span: "2.49m", mtow: "0.09t", danger: "Can carry Chaff / Flares.", note: "Aerial target drone.", cutin: "N/A - Unmanned.", pdf : "Banshee.pdf" },
+            { name: "RQ-4 Global Hawk", type: "drone", file: "GlobalHawk", ios_file: "Global_Hawk", crew: "Remote", pax: "0", weapons: "None", span: "39.9m", mtow: "14.6t", danger: "Dorsal Intake, Voltage.", note: "High altitude ISR.", cutin: "Battery disconnect only." },
+            { name: "AIM-9M Sidewinder", type: "ordnance", file: "aim-9m__sidewinder", ios_file: "AIM-9M__Sidewinder", neq: "9.4 kg", danger: "Rocket Motor.", note: "Air-to-Air.", span: "0.63m"},
+            { name: "Hellfire Missile", type: "ordnance", file: "hellfire", ios_file: "Hellfire", neq: "8.0 kg", danger: "Laser tracking.", note: "Anti-armor.", span: "0.33m" },
+            { name: "JDAM GBU-31", type: "ordnance", file: "jdam", ios_file: "JDAM", neq: "428 kg", danger: "Extreme Blast.", note: "GPS guided.", span: "0.64m" },
+            { name: "Paveway IV", type: "ordnance", file: "Paveway", ios_file: "Paveway", neq: "225 kg", danger: "Precision Seekers.", note: "Laser/GPS guided.", span: "0.42m" },
+            { name: "Storm Shadow", type: "ordnance", file: "storm_shadow", ios_file: "Storm_Shadow", neq: "450 kg", danger: "Intake suction.", note: "Cruise missile.", span: "3m" },
+            { name: "Aermacchi MB-326", type: "military", file: "aermacchi_mb-326", ios_file: "Aermacchi_MB-326", pdf: "UAEA M.B.339NAT.pdf" },
+            { name: "AV-8B Harrier II", type: "military", file: "av-8b_harrier_ii", ios_file: "AV-8B_Harrier_II", pdf: "Harrier AV8 - Pt1.pdf" },
+            { name: "Fiat G.91", type: "military", file: "fiat_g91", ios_file: "Fiat_G91" },
+            { name: "Gulfstream G600", type: "civilian", file: "gulfstream_g600", ios_file: "Gulfstream_G600" },
+            { name: "Hawker Hunter", type: "military", file: "hunter", ios_file: "Hunter" },
+            { name: "Ikarus C42", type: "civilian", file: "ikarus_c42", ios_file: "Ikarus_c42" },
+            { name: "Mil Mi-17", type: "rotary", file: "mil_mi-17", ios_file: "Mil_Mi-17", pdf: "Mi-171.pdf" },
+            { name: "NH-90 (Ghosts Edition)", type: "rotary", file: "call_of_duty_ghosts_-_nh-90", ios_file: "Call_of_Duty_Ghosts_-_NH-90", pdf: "NH90 - Helicopter.pdf" },
+            { name: "PBY-5A Catalina", type: "military", file: "pby-5a_catalina_war_thunder", ios_file: "PBY-5A_Catalina_War_Thunder" },
+            { name: "Piaggio P.166", type: "civilian", file: "piaggio_p.166", ios_file: "Piaggio_P" },
+            { name: "Pilatus PC-24", type: "civilian", file: "pilatus_pc-24", ios_file: "Pilatus_PC-24" },
+            { name: "Piper PA-18 Super Cub", type: "civilian", file: "piper_pa-18_super_cub_philsca_edition", ios_file: "PIPER_PA-18_SUPER_CUB_PHILSCA_EDITION" },
+            { name: "SA340/341/342 Gazelle", type: "rotary", file: "sud-aviation_sa340341342_gazelle", ios_file: "Sud-Aviation_SA340341342_Gazelle" },
+            { name: "Seafire FR 47", type: "military", file: "seafire_fr_47_war_thunder", ios_file: "Seafire_FR_47_War_Thunder", pdf: "Seafire.pdf" },
+            { name: "Soko J-20 Kraguj", type: "military", file: "soko_j-20_kraguj", ios_file: "Soko_J-20_Kraguj" }
         ];
 
         const modelData = rawData.sort((a, b) => a.name.localeCompare(b.name));
         
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         let renderTask = null;
+
+        window.addEventListener('DOMContentLoaded', () => { 
+            populateSelect();
+            if (modelData.length > 0) {
+                updateAsset(0); 
+            }
+        });
         
         async function openPdfModal() {
             if (!activePdfFile) return;
@@ -352,49 +523,6 @@
             hotspotToggleBtn.textContent = hotspotsVisible ? "Hide" : "POI";
         }
         
-        modelSelect.addEventListener('change', (e) => updateAsset(e.target.value));
-        searchInput.addEventListener('input', populateSelect);
-        
-        window.addEventListener('DOMContentLoaded', () => { 
-            populateSelect();
-            if (modelData.length > 0) {
-                updateAsset(0); 
-            }
-        });
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('AeroViewer Offline Ready'))
-                    .catch(err => console.log('SW Registration Failed', err));
-            });
-        }
-
-        const tacticalDeployments = {
-            "C-17A Globemaster": {
-                "engine_fire": [
-                    { type: "mprv", position: "15m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV Rescue Side or Rear" },
-                    { type: "striker", position: "-30m 0m 15m", rotation: "0 -45deg 0", label: "Crash 2: Dominant Position" },
-                    { type: "striker", position: "-15m 0m -30m", rotation: "0 135deg 0", label: "Crash 3: Front of Engine Fire" }
-                ],
-                "wheel_fire": [
-                    { type: "mprv", position: "15m 0m 20m", rotation: "0 90deg 0", label: "Crash 1: MPRV Rescue Side" },
-                    { type: "striker", position: "-25m 0m 0m", rotation: "0 -90deg 0", label: "Crash 2: Dominant Cover" },
-                    { type: "striker", position: "25m 0m 5m", rotation: "0 90deg 0", label: "Crash 3: Opposite Undercarriage" }
-                ],
-                "internal_fire": [
-                    { type: "mprv", position: "20m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV Rescue Side" },
-                    { type: "striker", position: "-25m 0m 15m", rotation: "0 -45deg 0", label: "Crash 2: Striker" },
-                    { type: "striker", position: "0m 0m 35m", rotation: "0 180deg 0", label: "Crash 3: Striker Rear Deployment" }
-                ],
-                "external_fire": [
-                    { type: "mprv", position: "20m 0m 25m", rotation: "0 45deg 0", label: "Crash 1: MPRV Rescue Side" },
-                    { type: "striker", position: "-30m 0m 15m", rotation: "0 -45deg 0", label: "Crash 2: Striker" },
-                    { type: "striker", position: "0m 0m 35m", rotation: "0 180deg 0", label: "Crash 3: Striker Rear Deployment" }
-                ]
-            }
-        };
-
         function renderTacticalScenario(scenarioId) {
             document.querySelectorAll('.tactical-vehicle').forEach(el => el.remove());
             
@@ -409,26 +537,21 @@
             const deployments = assetData[scenarioId];
             
             deployments.forEach((vehicle, index) => {
-                const hotspot = document.createElement('button');
+                const hotspot = document.createElement('div');
                 hotspot.className = 'hotspot tactical-vehicle visible';
                 hotspot.slot = `hotspot-tactical-${index}`;
                 hotspot.dataset.position = vehicle.position;
                 hotspot.dataset.normal = "0 1 0";
-                hotspot.style.width = "100px";
-                hotspot.style.height = "50px";
-                hotspot.style.background = "transparent";
-                hotspot.style.border = "none";
-                hotspot.style.boxShadow = "none";
                 
                 hotspot.innerHTML = `
                     <model-viewer 
+                        class="tactical-model"
                         src="models/${vehicle.type}.glb" 
                         camera-controls="false" 
                         interaction-prompt="none" 
-                        style="width: 100%; height: 100%; background: transparent;"
                         orientation="${vehicle.rotation}">
                     </model-viewer>
-                    <div class="hotspot-annotation" style="transform: translate(0, -40px); background: var(--raf-red); color: white;">
+                    <div class="hotspot-annotation" style="transform: translate(0, -30px); background: var(--raf-red); color: white;">
                         ${vehicle.label}
                     </div>
                 `;
@@ -437,7 +560,16 @@
             });
         }
 
+        modelSelect.addEventListener('change', (e) => updateAsset(e.target.value));
+        searchInput.addEventListener('input', populateSelect);
         scenarioSelect.addEventListener('change', (e) => renderTacticalScenario(e.target.value));
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .catch(err => console.log('SW Registration Failed', err));
+            });
+        }
     </script>
 </body>
 </html>
