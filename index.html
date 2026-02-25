@@ -1,180 +1,558 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Aero Asset Viewer - ICAO TACTICAL</title>
+    <title>AeroViewer - ICAO TACTICAL V1.1</title>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
     <meta name="theme-color" content="#0d1117">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
         :root {
             --app-bg: #0d1117; --raf-blue: #5d7a8c; --raf-red: #c21807;
             --icao-gold: #d4af37; --accent: #63b3ed; --glass: rgba(255, 255, 255, 0.05);
             --glass-border: rgba(255, 255, 255, 0.1);
+            --rotary-green: #48bb78; --tactical-yellow: #ffd700;
         }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: var(--app-bg); font-family: 'Segoe UI', Roboto, sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: var(--app-bg); font-family: 'Segoe UI', Roboto, sans-serif; touch-action: pan-x pan-y; }
         
-        /* Start Screen */
-        #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, #1a202c 0%, #0d1117 100%); z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s ease, visibility 0.8s; }
-        .radar { position: relative; width: 320px; height: 320px; border: 2px solid rgba(99, 179, 237, 0.2); border-radius: 50%; background: repeating-radial-gradient(circle at center, transparent, transparent 39px, rgba(99, 179, 237, 0.1) 40px); }
-        .radar::after { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(from -90deg, transparent 0deg, rgba(99, 179, 237, 0.4) 90deg, transparent 91deg); mask: radial-gradient(circle at center, rgba(0,0,0,1) 30%, rgba(0,0,0,0.8) 100%); -webkit-mask: radial-gradient(circle at center, rgba(0,0,0,1) 30%, rgba(0,0,0,0.8) 100%); animation: sweep 4s linear infinite; }
+        #pdf-modal { touch-action: auto !important; }
+        #pdf-modal * { touch-action: auto !important; }
+        
+        #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, #1a202c 0%, #0d1117 100%); z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.6s ease; }
+        .radar { position: relative; width: 280px; height: 280px; border: 2px solid rgba(99, 179, 237, 0.2); border-radius: 50%; margin-bottom: 20px;}
+        .radar::after { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(from -90deg, transparent 0deg, rgba(99, 179, 237, 0.4) 90deg, transparent 91deg); animation: sweep 4s linear infinite; }
         @keyframes sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .commence-btn { margin-top: 50px; background: transparent; color: white; border: 1px solid white; padding: 12px 40px; border-radius: 4px; letter-spacing: 4px; font-weight: bold; cursor: pointer; transition: 0.3s; z-index: 1001; }
-        .commence-btn:hover { background: white; color: black; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
-
-        /* UI Overlays */
-        .app-overlay { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100; width: 90%; max-width: 500px; }
-        .control-panel { background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); padding: 12px 18px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; }
-        .panel-label { font-size: 9px; color: var(--accent); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
-        select { background: transparent; color: white; border: none; font-weight: bold; width: 100%; cursor: pointer; font-size: 14px; outline: none; }
-        .factsheet-btn { background: var(--raf-blue); color: white; border: none; padding: 8px 14px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
-
-        /* Details Panel */
-        .details-panel { position: absolute; top: 0; right: -100%; width: 100%; max-width: 400px; height: 100%; background: rgba(10, 15, 25, 0.98); backdrop-filter: blur(25px); z-index: 300; transition: right 0.5s cubic-bezier(0.19, 1, 0.22, 1); color: white; border-left: none; overflow-y: auto; }
+        .commence-btn { background: transparent; color: white; border: 1px solid white; padding: 15px 45px; border-radius: 4px; letter-spacing: 4px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .commence-btn:hover { background: white; color: black; }
+        
+        #loader-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13, 17, 23, 0.95); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 2500; backdrop-filter: blur(10px); }
+        .load-bar-container { width: 240px; height: 4px; background: rgba(255,255,255,0.05); margin-top: 15px; overflow: hidden; border-radius: 10px; }
+        .load-bar-fill { height: 100%; width: 35%; background: var(--tactical-yellow); animation: loading-slide 1.2s infinite ease-in-out; }
+        @keyframes loading-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+        
+        #pdf-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.98); z-index: 3000; display: none; flex-direction: column; }
+        #pdf-modal.active { display: flex; }
+        .pdf-header { background: var(--app-bg); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); flex-wrap: wrap; gap: 10px; }
+        .pdf-title { color: white; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; flex: 1; min-width: 150px; }
+        .pdf-close-btn { background: var(--raf-red); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        .pdf-container { flex: 1; overflow: hidden; position: relative; background: #2a2a2a; touch-action: none; }
+        .pdf-scroll-container { width: 100%; height: 100%; overflow: auto; -webkit-overflow-scrolling: touch; }
+        .pdf-canvas-wrapper { display: inline-block; transform-origin: 0 0; transition: transform 0.1s ease-out; }
+        #pdf-canvas { display: block; margin: 0 auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .pdf-controls-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); padding: 10px 15px; border-radius: 30px; display: flex; gap: 15px; align-items: center; z-index: 10; }
+        .pdf-control-btn { background: var(--glass); border: 1px solid var(--glass-border); color: white; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .pdf-control-btn:active { background: var(--accent); }
+        .pdf-page-info { color: white; font-size: 12px; font-weight: 700; min-width: 60px; text-align: center; }
+        .pdf-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--tactical-yellow); font-size: 14px; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .app-overlay { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100; width: 95%; max-width: 600px; pointer-events: none; }
+        .control-panel { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); padding: 12px 18px; border-radius: 14px; pointer-events: auto; }
+        #asset-search { background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: white; width: 100%; padding: 12px; border-radius: 6px; font-size: 14px; outline: none; box-sizing: border-box; margin-bottom: 10px; }
+        .filter-row { display: flex; gap: 5px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+        .filter-btn { background: rgba(255,255,255,0.1); color: #ccc; border: none; padding: 6px 12px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer; white-space: nowrap; text-transform: uppercase; }
+        .filter-btn.active { background: var(--accent); color: white; }
+        
+        .selector-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .panel-label { font-size: 10px; color: var(--accent); text-transform: uppercase; font-weight: 800; }
+        
+        select { background: transparent; color: white; border: none; font-weight: bold; width: 100%; cursor: pointer; font-size: 16px; outline: none; }
+        select option, select optgroup { background-color: #1a202c; color: white; }
+        
+        .factsheet-btn { background: var(--raf-blue); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        .manual-btn { background: var(--icao-gold); color: #000; border: none; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; display: none; }
+        .toggle-btn { background: var(--rotary-green); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; display: none; }
+        .details-panel { position: absolute; top: 0; right: -100%; width: 100%; max-width: 500px; height: 100%; background: rgba(10, 15, 25, 0.98); backdrop-filter: blur(30px); z-index: 300; transition: right 0.4s cubic-bezier(0.19, 1, 0.22, 1); color: white; overflow-y: auto; }
         .details-panel.active { right: 0; }
-        .details-inner { padding: 40px 30px; }
-        .spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; }
-        .spec-item { border-top: 1px solid var(--glass-border); padding: 12px 0; }
+        .details-inner { padding: 60px 40px; }
+        .spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }
+        .spec-item { border-top: 1px solid var(--glass-border); padding: 15px 0; }
         .full-width { grid-column: span 2; }
-        .spec-label { font-size: 9px; color: var(--accent); text-transform: uppercase; font-weight: 800; }
-        .spec-value { display: block; font-size: 13px; margin-top: 4px; font-family: 'Courier New', monospace; color: #e2e8f0; }
-
-        /* Loading Graphic */
-        #loader-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #1a202c; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
-        .load-bar-container { width: 200px; height: 2px; background: rgba(255,255,255,0.1); margin-top: 15px; position: relative; overflow: hidden; }
-        .load-bar-fill { position: absolute; height: 100%; width: 50%; background: var(--accent); animation: loading-slide 1.5s infinite ease-in-out; }
-        @keyframes loading-slide { 0% { left: -50%; } 100% { left: 100%; } }
-
+        .spec-label { font-size: 11px; color: var(--accent); text-transform: uppercase; font-weight: 800; }
+        .spec-value { display: block; font-size: 18px; margin-top: 6px; font-family: 'Courier New', monospace; }
+        .hazard-box { border-left: 4px solid var(--raf-red); padding: 15px; background: rgba(194, 24, 7, 0.15); font-size: 15px; color: #ffcccc; }
         model-viewer { width: 100vw; height: 100vh; background-color: #1a202c; }
-        #ar-button { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--raf-red); color: white; border: none; padding: 14px 28px; border-radius: 50px; font-weight: 700; cursor: pointer; z-index: 50; text-transform: uppercase; font-size: 12px; }
-        .status-mil { color: var(--raf-red) !important; }
-        .status-civ { color: var(--icao-gold) !important; }
-        .hazard-box { border-left: 2px solid var(--raf-red); padding-left: 10px; background: rgba(194, 24, 7, 0.05); padding-top: 5px; padding-bottom: 5px; }
+        #ar-button { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--raf-red); color: white; border: none; padding: 16px 32px; border-radius: 50px; font-weight: 700; cursor: pointer; z-index: 50; text-transform: uppercase; font-size: 12px; }
+        .hotspot { background: var(--tactical-yellow); border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5); width: 14px; height: 14px; cursor: pointer; transition: opacity 0.3s; display: none; }
+        .hotspot.visible { display: block; }
+        .hotspot-annotation { background: #fff; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #000; font-size: 12px; font-weight: bold; padding: 4px 8px; position: absolute; transform: translate(10px, -20px); white-space: nowrap; pointer-events: none; }
     </style>
 </head>
 <body>
     <div id="start-screen">
         <div class="radar"></div>
-        <div style="text-align:center; z-index:1001;">
-            <h1 style="color:white; letter-spacing:8px; margin-top: 25px; font-weight:200;">AERO ASSET VIEWER</h1>
+        <div style="text-align:center;">
+            <h1 style="color:white; letter-spacing:8px; font-weight:200;">AERO VIEWER</h1>
+            <p style="color: var(--accent); font-size: 10px; letter-spacing: 2px; margin-bottom: 30px;">DFRP VR Team V1.1</p>
             <button class="commence-btn" onclick="enterApp()">START VIEWER</button>
         </div>
     </div>
+    
+    <div id="loader-overlay">
+        <div class="panel-label" style="color: var(--tactical-yellow);">Processing Asset...</div>
+        <div class="load-bar-container"><div class="load-bar-fill"></div></div>
+    </div>
+    
+    <div id="pdf-modal">
+        <div class="pdf-header">
+            <div class="pdf-title" id="pdf-modal-title">Aircraft Quick Reference Card</div>
+            <button class="pdf-close-btn" onclick="closePdfModal()">✕ CLOSE</button>
+        </div>
+        <div class="pdf-container">
+            <div class="pdf-loading" id="pdf-loading">Loading PDF...</div>
+            <div class="pdf-scroll-container" id="pdf-scroll-container">
+                <div class="pdf-canvas-wrapper" id="pdf-canvas-wrapper">
+                    <canvas id="pdf-canvas"></canvas>
+                </div>
+            </div>
+            <div class="pdf-controls-bar">
+                <button class="pdf-control-btn" onclick="previousPage()">◀</button>
+                <div class="pdf-page-info" id="pdf-page-info">1 / 1</div>
+                <button class="pdf-control-btn" onclick="nextPage()">▶</button>
+                <button class="pdf-control-btn" onclick="zoomOut()">−</button>
+                <button class="pdf-control-btn" onclick="zoomIn()">+</button>
+            </div>
+        </div>
+    </div>
+    
     <div id="details-panel" class="details-panel">
         <div class="details-inner">
             <div id="asset-classification" class="spec-label">Syncing...</div>
-            <h2 id="asset-title" style="margin: 10px 0; font-size: 26px; text-transform: uppercase; letter-spacing: 1px;">Asset</h2>
+            <h2 id="asset-title" style="margin: 15px 0; font-size: 32px; text-transform: uppercase;">Asset</h2>
             <div id="spec-container" class="spec-grid"></div>
-            <button onclick="toggleDetails()" style="margin-top: 40px; background: transparent; border: 1px solid white; color: white; padding: 12px; width: 100%; cursor: pointer; font-size: 11px; font-weight: 800; text-transform: uppercase;">Close Factsheet</button>
+            <button onclick="toggleDetails()" style="margin-top: 50px; background: white; border: none; color: black; padding: 18px; width: 100%; cursor: pointer; font-weight: 800; text-transform: uppercase;">Close window</button>
         </div>
     </div>
+    
     <div class="app-overlay">
         <div class="control-panel">
-            <div style="flex-grow: 1; overflow: hidden; padding-right: 15px;">
-                <span class="panel-label">Primary Asset</span>
-                <select id="model-select"><option>Loading Inventory...</option></select>
+            <input type="text" id="asset-search" placeholder="Search Database...">
+            <div class="filter-row">
+                <button class="filter-btn active" onclick="filterByType('all')">All</button>
+                <button class="filter-btn" onclick="filterByType('civilian')">Civilian</button>
+                <button class="filter-btn" onclick="filterByType('military')">Military</button>
+                <button class="filter-btn" onclick="filterByType('rotary')">Rotary</button>
+                <button class="filter-btn" onclick="filterByType('drone')">Drone</button>
+                <button class="filter-btn" onclick="filterByType('ordnance')">Ordnance</button>
             </div>
-            <button class="factsheet-btn" onclick="toggleDetails()">Factsheet</button>
+            <div class="selector-row">
+                <div style="flex-grow: 1; overflow: hidden; padding-right: 10px;">
+                    <span class="panel-label">Primary Asset</span>
+                    <select id="model-select"></select>
+                </div>
+                <button id="toggle-hotspots" class="toggle-btn" onclick="toggleHotspots()">POI</button>
+                <button id="pdf-btn" class="manual-btn" onclick="openPdfModal()">AQRC</button>
+                <button class="factsheet-btn" onclick="toggleDetails()">Factsheet</button>
+            </div>
+            <div class="selector-row" style="margin-top: 10px;">
+                <div style="flex-grow: 1; overflow: hidden; padding-right: 10px;">
+                    <span class="panel-label">Tactical Scenario</span>
+                    <select id="scenario-select">
+                        <option value="none">Standard View</option>
+                        <option value="engine_fire">TTP 1 - Engine Fire</option>
+                        <option value="wheel_fire">TTP 2 - Wheel Assembly</option>
+                        <option value="internal_fire">TTP 3 - Internal Fire</option>
+                        <option value="external_fire">TTP 4 - External Fire</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </div>
-    <model-viewer id="main-viewer" ar ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="2" environment-image="neutral">
-        <div id="loader-overlay" slot="poster">
-            <div class="panel-label" style="letter-spacing: 3px;">System Initializing...</div>
-            <div class="load-bar-container"><div class="load-bar-fill"></div></div>
-        </div>
-        <button slot="ar-button" id="ar-button">Deploy to AR</button>
+    
+    <model-viewer id="main-viewer" ar ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="2">
+        <button class="hotspot group-rotary" slot="hotspot-1" data-position="-15.07m 13.01m -36.07m" data-normal="-0.87m 0.40m -0.27m"><div class="hotspot-annotation">Battery Bay</div></button>
+        <button class="hotspot group-rotary" slot="hotspot-2" data-position="-17.96m 9.45m 9.23m" data-normal="-0.82m -0.56m -0.01m"><div class="hotspot-annotation">Flares / Chaff</div></button>
+        <button class="hotspot group-rotary" slot="hotspot-3" data-position="11.56m 16.92m 36.00m" data-normal="0.99m 0.05m -0.00m"><div class="hotspot-annotation">Ramp Control Panel</div></button>
+        <button class="hotspot group-a10" slot="hotspot-8" data-position="-5.989m 1.695m 7.950m" data-normal="0m 0m 1m"><div class="hotspot-annotation">Main Gun (GAU-8)</div></button>
+        <button class="hotspot group-a10" slot="hotspot-9" data-position="-5.603m 2.485m -3.850m" data-normal="1m 0m 0m"><div class="hotspot-annotation">APU Exhaust</div></button>
+        <button class="hotspot group-a10" slot="hotspot-10" data-position="-5.442m 2.198m 5.058m" data-normal="1m 0m 0m"><div class="hotspot-annotation">Battery Access</div></button>
+        <button slot="ar-button" id="ar-button">View in AR</button>
     </model-viewer>
-
+    
     <script>
         const viewer = document.querySelector('#main-viewer');
         const modelSelect = document.querySelector('#model-select');
-        let modelData = []; // Paste your JSON data here or fetch it
+        const searchInput = document.querySelector('#asset-search');
+        const loader = document.getElementById('loader-overlay');
+        const pdfBtn = document.getElementById('pdf-btn');
+        const hotspotToggleBtn = document.getElementById('toggle-hotspots');
+        const pdfModal = document.getElementById('pdf-modal');
+        const pdfCanvas = document.getElementById('pdf-canvas');
+        const pdfCanvasWrapper = document.getElementById('pdf-canvas-wrapper');
+        const pdfScrollContainer = document.getElementById('pdf-scroll-container');
+        const pdfLoading = document.getElementById('pdf-loading');
+        const pdfPageInfo = document.getElementById('pdf-page-info');
+        const pdfModalTitle = document.getElementById('pdf-modal-title');
+        const scenarioSelect = document.querySelector('#scenario-select');
+        
+        let pdfDoc = null;
+        let currentPage = 1;
+        let currentScale = 1.5;
+        const MIN_SCALE = 0.5;
+        const MAX_SCALE = 4.0;
+        
+        let hotspotsVisible = false;
+        let currentFilter = 'all';
+        let activePdfFile = "";
+        let currentAssetName = "";
+        
+        const rawData = [
+            { name: "Airbus A220", type: "civilian", file: "a220", ios_file: "A220", arff_cat: "6", fuel: "21k L", crew: "2", pax: "160", span: "35.1m", mtow: "70.9t", doors: "4 Main Doors", danger: "Engine Intake (5m).", note: "Modern efficient narrow-body.", batt: "Aft of nose wheel (L)", pdf: "A220.pdf" },
+            { name: "Airbus A318", type: "civilian", file: "airbus_a318-122", ios_file: "Airbus_A318-122", arff_cat: "6", fuel: "24k L", crew: "2", pax: "132", span: "34.1m", mtow: "68t", doors: "4 Main, 2 Overwing", danger: "Engine Intake (5m), Exhaust (50m).", note: "Smallest member of the A320 family.", batt: "Aft of Nose Gear (L)", pdf: "A318.pdf" },
+            { name: "Airbus A319", type: "civilian", file: "airbus_a319", ios_file: "Airbus_A319", arff_cat: "6", fuel: "24k L", crew: "2", pax: "156", span: "34.1m", mtow: "75.5t", doors: "4 Main, 2 Overwing", danger: "Eng Intake (5m).", note: "Battery in Fwd E/E bay.", batt: "Aft of Nose Gear (L)", pdf: "A319.pdf" },
+            { name: "Airbus A320", type: "civilian", file: "airbus_a320", ios_file: "Airbus_A320", arff_cat: "6", fuel: "27k L", crew: "2", pax: "186", span: "35.8m", mtow: "78t", doors: "4 Main, 4 Overwing", danger: "Eng Intake (5m).", note: "Oxygen fwd of wing.", batt: "Lower Fwd Electronics Bay", pdf: "A320.pdf" },
+            { name: "Airbus A321", type: "civilian", file: "airbus_a321", ios_file: "Airbus_A321", arff_cat: "7", fuel: "29k L", crew: "2", pax: "230", span: "35.8m", mtow: "93.5t", doors: "8 Main Doors", danger: "Tail strike risk.", note: "Stretched fuselage.", batt: "Aft of nose wheel", pdf: "A321.pdf"},
+            { name: "Airbus A330", type: "civilian", file: "airbus_a330-200", ios_file: "Airbus_A330-200", arff_cat: "8", fuel: "139k L", crew: "2", pax: "293", span: "60.3m", mtow: "242t", doors: "8 Main Doors", danger: "Widebody Intake (8m).", note: "Twin-aisle.", batt: "Fwd Main Gear Bay", pdf : "A330.pdf" },
+            { name: "Airbus A340", type: "civilian", file: "airbus_a340", ios_file: "airbus_a340", arff_cat: "9", fuel: "215k L", crew: "2", pax: "375", span: "63.4m", mtow: "380t", doors: "8 Main Doors", danger: "4x Eng suction.", note: "Hydraulic reservoir in wing root.", batt: "Lower Cargo Bay Fwd",pdf : "A340.pdf" },
+            { name: "Airbus A350", type: "civilian", file: "airbus_a350-1000", ios_file: "Airbus_A350-1000", arff_cat: "9", fuel: "156k L", crew: "2", pax: "480", span: "64.75m", mtow: "319t", doors: "8 Main Doors", danger: "Massive engine suction (10m+).", note: "Large composite widebody.", batt: "Under floor fwd of wing", pdf: "A350.pdf" },
+            { name: "Airbus A380", type: "civilian", file: "airbus_a380", ios_file: "Airbus_A380", arff_cat: "10", fuel: "320k L", crew: "2", pax: "853", span: "79.7m", mtow: "575t", doors: "16 Main Doors", danger: "Intake (10m).", note: "Super-heavy.", batt: "Multiple (Fwd/Aft Gear Bays)", pdf: "A380.pdf" },
+            { name: "ATR-72", type: "civilian", file: "atr-72", ios_file: "ATR-72", arff_cat: "5", fuel: "5k L", crew: "2", pax: "78", span: "27.1m", mtow: "23t", doors: "2 Fwd, 2 Aft", danger: "Propeller arc.", note: "Rear pax entry.", batt: "Aft Fuselage RHS", pdf : "ATR.pdf" },
+            { name: "Boeing 707-320B", type: "civilian", file: "boeing_707-320b", ios_file: "Boeing_707-320B", arff_cat: "7", fuel: "90k L", crew: "3", pax: "189", span: "44.4m", mtow: "151t", doors: "4 Main, 4 Overwing", danger: "Low engine clearance.", note: "Vintage quad-jet.", batt: "Fwd Belly RHS", pdf: "B707.pdf" },
+            { name: "Boeing 737-800", type: "civilian", file: "boeing_737-800", ios_file: "Boeing_737-800", arff_cat: "6", fuel: "26k L", crew: "2", pax: "189", span: "35.8m", mtow: "79t", doors: "4 Main, 4 Overwing", danger: "Intake (4m).", note: "APU exhaust at tail.", batt: "Electronics Bay Fwd of Wing", pdf: "B737.pdf" },
+            { name: "Boeing 737 MAX", type: "civilian", file: "boeing_737max", ios_file: "Boeing_737Max", arff_cat: "6", fuel: "26k L", crew: "2", pax: "200", span: "35.9m", mtow: "82t", doors: "4 Main, 4 Overwing", danger: "LEAP Engine Intake.", note: "Software variant protocol.", batt: "E/E Bay (Nose)", pdf: "B737.pdf" },
+            { name: "Boeing 747-400", type: "civilian", file: "boeing_747-400", ios_file: "Boeing_747-400", arff_cat: "10", fuel: "216k L", crew: "3", pax: "660", span: "64.4m", mtow: "397t", doors: "10 Main, 2 Upper", danger: "Jumbo jet blast.", note: "Upper deck height.", batt: "Fwd Landing Gear Bay", pdf: "B747.pdf" },
+            { name: "Boeing 747-8F", type: "civilian", file: "boeing_747-8f", ios_file: "Boeing_747-8F", arff_cat: "10", fuel: "226k L", crew: "2", pax: "0", span: "68.4m", mtow: "447t", doors: "Nose/Side Cargo", danger: "Nose cargo door arc.", note: "Cargo fire hazard.", batt: "Nose Gear Well", pdf: "B747.pdf" },
+            { name: "Boeing 757-300", type: "civilian", file: "boeing_757-300", ios_file: "Boeing_757-300", arff_cat: "7", fuel: "43k L", crew: "2", pax: "295", span: "38m", mtow: "123t", doors: "6 Main, 4 Overwing", danger: "High landing speed.", note: "Single-aisle long body.", batt: "Electronics Bay (Left)", pdf: "B757.pdf" },
+            { name: "Boeing 767-200", type: "civilian", file: "boeing_767-200", ios_file: "Boeing_767-200", arff_cat: "8", fuel: "63k L", crew: "2", pax: "250", span: "47.6m", mtow: "179t", doors: "4 Main, 2 Overwing", danger: "Intake suction.", note: "Mid-size widebody.", batt: "Fwd Cargo Sidewall", pdf: "B767.pdf" },
+            { name: "Boeing 767-300", type: "civilian", file: "boeing_767-300", ios_file: "Boeing_767-300", arff_cat: "8", fuel: "91k L", crew: "2", pax: "350", span: "47.6m", mtow: "187t", doors: "4 Main, 4 Overwing", danger: "Large intakes.", note: "ETOPS certified.", batt: "Fwd Left Gear Bay", pdf: "B767.pdf" },
+            { name: "Boeing 777", type: "civilian", file: "emirates_boeing_777-200", ios_file: "Emirates_Boeing_777-200", arff_cat: "9", fuel: "117k L", crew: "2", pax: "440", span: "60.9m", mtow: "297t", doors: "10 Main Doors", danger: "GE90 Intake (10m).", note: "High capacity.", batt: "MEC fwd of wing", pdf: "B777.pdf" },
+            { name: "Boeing 787", type: "civilian", file: "boeing_787", ios_file: "Boeing_787", arff_cat: "9", fuel: "126k L", crew: "2", pax: "330", span: "60.1m", mtow: "228t", doors: "8 Main Exit Doors", danger: "Li-Ion Batteries.", note: "Composite structure.", batt: "Fwd & Aft E/E Bays", pdf: "B787.pdf" },
+            { name: "Bombardier Global 7500", type: "civilian", file: "bombardier_global_7500", ios_file: "Bombardier_Global_7500", arff_cat: "4", fuel: "21k L", crew: "2", pax: "19", span: "31.7m", mtow: "52t", doors: "1 Main Fwd", danger: "Rear engines.", note: "Ultra-long range.", batt: "Under fwd cabin floor", pdf: "Global7500.pdf" },
+            { name: "Dash 8 Q400", type: "civilian", file: "bombardier_dash_q400_-_qantas_link", ios_file: "Bombardier_Dash_Q400_-_Qantas_Link", arff_cat: "5", fuel: "6.5k L", crew: "2", pax: "82", span: "28.4m", mtow: "29t", doors: "2 Fwd, 2 Aft", danger: "Propeller arc.", note: "Turboprop.", batt: "Rear Baggage RHS" },
+            { name: "DC-3", type: "civilian", file: "mcdonnell_douglas_dc-3", ios_file: "McDonnell_Douglas_DC-3", arff_cat: "3", fuel: "3k L", crew: "2", pax: "28", span: "29m", mtow: "11.4t", doors: "1 Aft Door", danger: "Propeller hazard.", note: "Vintage radial props.", batt: "Aft of Pilot RHS", pdf: "AQRC-A08-Dakota-V1.2.pdf" },
+            { name: "DC-9", type: "civilian", file: "mcdonnell_douglas_dc-9-50", ios_file: "McDonnell_Douglas_DC-9-50", arff_cat: "6", fuel: "14k L", crew: "2", pax: "135", span: "28.5m", mtow: "55t", doors: "2 Main, 2 Overwing", danger: "Rear engines.", note: "T-tail regional.", batt: "Nose E/E bay", pdf : "DC9.pdf" },
+            { name: "DHC-7", type: "civilian", file: "de_havilland_canada_dhc-7", ios_file: "de_Havilland_Canada_DHC-7", arff_cat: "4", fuel: "5.5k L", crew: "2", pax: "50", span: "28.3m", mtow: "20t", doors: "2 Main (Aft)", danger: "4x Propeller arcs.", note: "STOL specialist.", batt: "Tail cone" },
+            { name: "ERJ 135", type: "civilian", file: "embraer_erj_135", ios_file: "Embraer_ERJ_135", arff_cat: "6", fuel: "5k L", crew: "2", pax: "37", span: "20m", mtow: "19t", doors: "1 Fwd, 1 Svc", danger: "Aft engine.", note: "Regional jet.", batt: "Rear Fuselage LHS" },
+            { name: "ERJ 145", type: "civilian", file: "embraer_erj_145", ios_file: "Embraer_ERJ_145", arff_cat: "6", fuel: "6k L", crew: "2", pax: "50", span: "20m", mtow: "21t", doors: "1 Fwd, 1 Svc", danger: "Aft engine.", note: "Regional standard.", batt: "Aft Utility Bay" },
+            { name: "Falcon 50", type: "civilian", file: "falcon50", ios_file: "falcon50", arff_cat: "4", fuel: "7k L", crew: "2", pax: "9", span: "18.8m", mtow: "18.5t", doors: "1 Fwd, 1 Overwing", danger: "Center engine.", note: "Tri-jet.", batt: "Aft Service Compartment" },
+            { name: "King Air", type: "civilian", file: "super king air", ios_file: "SUPER KING AIR", arff_cat: "3", fuel: "2k L", crew: "2", pax: "11", span: "17.6m", mtow: "5.6t", doors: "1 Aft Door", danger: "Propeller arc.", note: "Utility turboprop.", batt: "Engine Nacelles", pdf: "AQRC-A22-King-Air.pdf" },
+            { name: "Learjet 35A", type: "civilian", file: "bombardier_learjet_35a", ios_file: "Bombardier_Learjet_35A", arff_cat: "3", fuel: "3.5k L", crew: "2", pax: "8", span: "12m", mtow: "8.3t", doors: "1 Clamshell", danger: "Tip tanks.", note: "Low ground clearance.", batt: "Aft Utility RHS" },
+            { name: "Learjet 60", type: "civilian", file: "bombardier_learjet_60", ios_file: "Bombardier_Learjet_60", arff_cat: "3", fuel: "4k L", crew: "2", pax: "10", span: "13.3m", mtow: "10.6t", doors: "1 Clamshell", danger: "Aft engines.", note: "Mid-size biz jet.", batt: "Tail cone" },
+            { name: "MD-11", type: "civilian", file: "md-11", ios_file: "MD-11", arff_cat: "9", fuel: "146k L", crew: "3", pax: "410", span: "51.7m", mtow: "286t", doors: "10 Main Doors", danger: "Tail engine.", note: "High landing speed.", batt: "Fwd Electronics Bay" },
+            { name: "MD-90", type: "civilian", file: "md90", ios_file: "MD90", arff_cat: "6", fuel: "17k L", crew: "2", pax: "172", span: "32.8m", mtow: "70.7t", doors: "2 Main, 4 Overwing", danger: "Rear engines.", note: "MD-80 derivative.", batt: "Aft of nose wheel" },
+            { name: "A-10 Thunderbolt", type: "military", file: "a10", ios_file: "A10", crew: "1", weapons: "30mm GAU-8", span: "17.5m", mtow: "22.7t", danger: "Rear Intake, Gun blast.", note: "Titanium armor.", pdf : "A10.pdf" },
+            { name: "A400M Atlas", type: "military", file: "A400M", ios_file: "a400m", crew: "3", pax: "116", weapons: "Cargo", span: "42.4m", mtow: "141t", danger: "4x Propellers.", note: "Tactical heavy.", pdf: "A400M.pdf" },
+            { name: "B-1 Lancer", type: "military", file: "B1", ios_file: "B1", crew: "4", weapons: "Internal", span: "41.8m", mtow: "216t", danger: "Sweep Wing.", note: "Supersonic bomber.", pdf : "B1.pdf" },
+            { name: "B-2 Spirit", type: "military", file: "B2", ios_file: "b2", crew: "2", weapons: "Internal", span: "52.4m", mtow: "170t", danger: "Dorsal Intake.", note: "Stealth composite.", pdf : "B2.pdf" },
+            { name: "B-52 Stratofortress", type: "military", file: "boeing_b-52_stratofortress", ios_file: "Boeing_B-52_Stratofortress", crew: "5", weapons: "Internal", span: "56.4m", mtow: "220t", danger: "8x Engines.", note: "Strategic heavy.", pdf : "B52.pdf" },
+            { name: "BAE Hawk", type: "military", file: "Hawk", ios_file: "hawk", crew: "2", weapons: "30mm Pod", span: "9.9m", mtow: "9.1t", danger: "Intake, Seats.", note: "Advanced trainer.", pdf : "Hawk.pdf" },
+            { name: "C-130 Hercules", type: "military", file: "c130j", ios_file: "c130j", crew: "3", pax: "92", span: "40.4m", mtow: "70.3t", danger: "4x Propellers.", note: "Tactical airlifter.", pdf: "C130.pdf" },
+            { name: "C-17A Globemaster", type: "military", file: "c17a", ios_file: "C17A", crew: "3", pax: "102", span: "51.7m", mtow: "265t", danger: "Reverse thrust.", note: "Tactical airlifter.", pdf: "C17.pdf" },
+            { name: "C-5 Galaxy", type: "military", file: "c5_galaxy_model", ios_file: "C5_galaxy_model", crew: "7", pax: "73", span: "67.9m", mtow: "381t", danger: "Massive suction.", note: "Strategic heavy lifter.", pdf: "C5.pdf" },
+            { name: "DHC-1 Chipmunk", type: "military", file: "de_havilland_canada_dhc-1_chipmunk", ios_file: "de_Havilland_Canada_DHC-1_Chipmunk", crew: "2", span: "10.4m", mtow: "0.9t", danger: "Propeller arc.", note: "Classic trainer.", pdf: "AQRC-A07-Chipmunk-V1.2.pdf" },
+            { name: "Douglas C-47 Dakota", type: "military", file: "mcdonnell_douglas_dc-3", ios_file: "G-PIGY", arff_cat: "3", crew: "2", span: "29m", mtow: "11.4t", danger: "Propeller hazard.", note: "Heritage DC-3 variant.", pdf: "AQRC-A08-Dakota-V1.2.pdf" },
+            { name: "F/A-18 Hornet", type: "military", file: "F18Hornet", ios_file: "F18Hornet", crew: "1/2", weapons: "Multi-role", span: "12.3m", mtow: "23.5t", danger: "Carrier gear.", note: "Folding wings.", pdf : "FA18.pdf" },
+            { name: "F-15 Strike Eagle", type: "military", file: "F15", ios_file: "f15", crew: "1/2", weapons: "Multi-role", span: "13m", mtow: "36.7t", danger: "Hot exhaust.", note: "Air superiority.", pdf : "F15.pdf" },
+            { name: "F-16 Falcon", type: "military", file: "F16", ios_file: "f16", crew: "1", weapons: "20mm/Msls", span: "9.9m", mtow: "19.2t", danger: "Ventral Intake, Hydrazine.", note: "Toxic EPU hazard.", pdf : "F16.pdf"},
+            { name: "F-22 Raptor", type: "military", file: "F22", ios_file: "f22", crew: "1", weapons: "Internal", span: "13.5m", mtow: "38t", danger: "LOX Systems.", note: "Stealth interceptor.", pdf : "F22.pdf" },
+            { name: "F-35 Lightning 2", type: "military", file: "f35", ios_file: "F35", crew: "1", weapons: "Internal", span: "10.7m", mtow: "31.7t", danger: "Eng Heat (1000C).", note: "Stealth composite.", pdf: "F35.pdf" },
+            { name: "Grob G 115 Tutor", type: "military", file: "Grob", ios_file: "grob", crew: "2", span: "10m", mtow: "0.99t", danger: "Propeller arc.", note: "Primary trainer.", pdf: "AQRC-A27-Grob-115E-Tutor.pdf" },
+            { name: "MiG-29 Fulcrum", type: "military", file: "Mig_29", ios_file: "MiG_29", crew: "1", weapons: "30mm/Msls", span: "11.3m", mtow: "18t", danger: "Hot exhaust.", note: "Eastern tactical.", pdf: "Mig29.pdf" },
+            { name: "Mirage 5F", type: "military", file: "dassault_mirage-5f", ios_file: "Dassault_Mirage-5F", crew: "1", weapons: "30mm DEFA", span: "8.2m", mtow: "13.7t", danger: "Intake suction.", note: "Ground-attack Mirage.", pdf: "Mirage5.pdf" },
+            { name: "Mirage 2000", type: "military", file: "dassault_mirage_2000_-_fighter_jet", ios_file: "Dassault_Mirage_2000_-_Fighter_Je", crew: "1", weapons: "Multi-role", span: "9.1m", mtow: "17t", danger: "Delta Wing Edge.", note: "French interceptor.", pdf : "Mirage2000.pdf" },
+            { name: "Mirage IIIE", type: "military", file: "dassault_mirage_iiie", ios_file: "Dassault_Mirage_IIIE", crew: "1", weapons: "30mm DEFA", span: "8.2m", mtow: "13.7t", danger: "Sharp edges.", note: "Vintage interceptor.", pdf: "MirageIII.pdf" },
+            { name: "NASA Orbiter", type: "civilian", file : "space_shuttle", ios_file: "Space-Shuttle", note: "Space Transportation System.", pdf : "Space Shuttle.pdf"},  
+            { name: "Rafale C", type: "military", file: "Rafale1", ios_file: "Dassault_Rafale_C_F3", crew: "1", weapons: "Multi-role", span: "10.9m", mtow: "24.5t", danger: "Ventral Intake.", note: "French air/sea.", pdf: "Rafale.pdf" },
+            { name: "C-141 Starlifter", type: "military", file: "c141", ios_file: "C141", crew: "5-7", span: "48.8m", mtow: "147t", danger: "Engine suction, T-tail height.", note: "Strategic airlifter.", pdf: "C141.pdf" },
+            { name: "F-117 Nighthawk", type: "military", file: "F117", ios_file: "Lockheed_F-117_nighthawk", crew: "1", weapons: "Internal Bay", span: "13.2m", mtow: "23.8t", danger: "RAM coating toxicity, sharp edges.", note: "Stealth attack aircraft.", pdf: "F117.pdf" },
+            { name: "Grumman C-2 Greyhound", type: "military", file: "grumman_c-2_greyhound", ios_file: "Grumman_C-2_Greyhound", crew: "2-4", pax: "26", span: "24.6m", mtow: "24.6t", danger: "Propeller arc, folding wings.", note: "Carrier onboard delivery.", pdf: "C2.pdf" },
+            { name: "P-3 Orion", type: "military", file: "lockheed_p-3_orion_vp-11", ios_file: "Lockheed_P-3_Orion_VP-11", crew: "11", span: "30.4m", mtow: "64.4t", danger: "4x Propellers, Sonobuoys.", note: "Maritime patrol/ASW.", pdf: "P3.pdf" },
+            { name: "Ka-50 Black Shark", type: "rotary", file: "helicopter_ka-50_3d_model", ios_file: "Helicopter_Ka-50_3D_model", crew: "1", weapons: "30mm/Rockets", span: "14.5m", mtow: "10.8t", danger: "Coaxial rotors, Ejection system.", note: "Single-seat attack helicopter.", pdf: "Ka50.pdf" },
+            { name: "Mi-8 Hip", type: "rotary", file: "mil_mi-8amtsh", ios_file: "Mil_Mi-8AMTSh", crew: "3", pax: "36", weapons: "Rockets/Guns", span: "21.3m", mtow: "13t", danger: "Main/Tail rotor arc.", note: "Armored assault transport.", pdf: "Mi8.pdf" },
+            { name: "Mi-24 Hind", type: "rotary", file: "hind_attack_helicopter", ios_file: "Hind_Attack_Helicopter", crew: "2-3", pax: "8", weapons: "12.7mm/Msls", span: "17.3m", mtow: "12t", danger: "Heavy rotor downwash.", note: "Gunship/Transport hybrid.", pdf: "Mi24.pdf" },
+            { name: "Mi-26 Halo", type: "rotary", file: "mi-26_soviet_helicopter", ios_file: "MI-26_Soviet_Helicopter", crew: "5", pax: "90", span: "32m", mtow: "56t", danger: "Massive static discharge.", note: "World's largest production helicopter.", pdf: "Mi26.pdf" },
+            { name: "Saab JAS 39 Gripen", type: "military", file: "saab_jas_39_gripen", ios_file: "Saab_JAS_39_Gripen", crew: "1", weapons: "AAMs", span: "8.4m", mtow: "14t", danger: "Canard pinch.", note: "Swedish tactical.", pdf: "JAS39.pdf" },
+            { name: "Shorts SC.7 Skyvan", type: "military", file: "Skyvan", ios_file: "skyvan", arff_cat: "4", crew: "2", pax: "19", span: "19.8m", mtow: "5.6t", danger: "Propeller arc.", note: "Military transport.", pdf: "AQRC-A47-SkyVan-V1.0.pdf" },
+            { name: "Typhoon", type: "military", file: "typhoon", ios_file: "Typhoon", crew: "1/2", weapons: "Multi-role", span: "10.9m", mtow: "23.5t", danger: "Canard pinch.", note: "Eurofighter tactical.", pdf: "AQRC-A28-Typhoon-V1.5.pdf" },
+            { name: "U-2 Dragon Lady", type: "military", file: "u2", ios_file: "U2", crew: "1", span: "31.4m", mtow: "18.1t", danger: "Bicycle gear.", note: "High altitude recon.", pdf: "U2.pdf" },
+            { name: "AH-1W SuperCobra", type: "rotary", file: "ah-1w_supercobra_attack_helicopter", ios_file: "AH-1W_Supercobra_Attack_Helicopter", crew: "2", weapons: "20mm/Rockets", span: "14.6m", mtow: "6.7t", danger: "Main/Tail Rotor arc.", note: "Attack specialist.", pdf: "AQRC-A37-Bell-212-Final.pdf" },
+            { name: "AH-64 Apache", type: "rotary", file: "ah-64d", ios_file: "Ah-64d", crew: "2", weapons: "30mm/Hellfire", span: "14.6m", mtow: "10.4t", danger: "Rotor arc.", note: "Heavy attack.", pdf: "AQRC-A33-Apache-AH64D-Final.pdf" },
+            { name: "SA330 Puma", type: "rotary", file: "puma", ios_file: "Puma", crew: "3", pax: "16", span: "15.0m", mtow: "7.4t", danger: "Main/Tail rotor arc.", note: "Medium lift utility.", pdf: "Puma2.pdf" },
+            { name: "CH-47 Chinook", type: "rotary", file: "chinook-2", ios_file: "Chinook-2", crew: "4", pax: "55", span: "18.3m", mtow: "22.7t", danger: "Tandem Rotors.", note: "Front rotor low.", pdf: "Chinook.pdf" },  
+            { name: "CH-53 Stallion", type: "rotary", file: "ch-53", ios_file: "CH-53", crew: "3", pax: "37", span: "24.1m", mtow: "33t", danger: "Massive static.", note: "Heavy lift.", pdf: "CH53.pdf" },
+            { name: "EC135 Juno", type: "rotary", file: "ec135", ios_file: "EC135", crew: "2", span: "10.2m", mtow: "2.9t", danger: "Fenestron arc.", note: "EMS standard.", pdf: "AQRC-A31-Juno-V1.3.pdf" },
+            { name: "EC145 Jupiter", type: "rotary", file: "ec145", ios_file: "EC145", crew: "3", span: "x", mtow: "x", danger: "Fenestron arc.", note: "EMS standard.", pdf: "EC145.pdf" },
+            { name: "EH101 Merlin MK2", type: "rotary", file: "merlin_mk2", ios_file: "Merlin_MK2", crew: "4", weapons: "Torpedos", span: "18.6m", mtow: "14.6t", danger: "3x Exhaust.", note: "ASW specialist.", pdf: "AQRC-A42-Merlin-Mk2-Final.pdf" },
+            { name: "MD 902 Explorer", type: "rotary", file: "md_helicopters_md-902_explorer", ios_file: "MD_Helicopters_MD-902_Explorer", crew: "1/2", span: "10.3m", mtow: "3t", danger: "NOTAR system.", note: "NOTAR safety system.", pdf: "AQRC-Explorer.pdf" },
+            { name: "MH-6 Little Bird", type: "rotary", file: "mh6", ios_file: "MH6", crew: "2", weapons: "Gun/Rockets", span: "8.3m", mtow: "1.6t", danger: "Main rotor height.", note: "SOF transport.", pdf : "MH6.pdf"},
+            { name: "NH90", type: "rotary", file: "nh90", ios_file: "NH90", crew: "3", pax: "20", span: "16.3m", mtow: "10.6t", danger: "Composite dust.", note: "Modern tactical transport.", pdf: "NH90 - Helicopter.pdf" },
+            { name: "OH-58 Kiowa", type: "rotary", file: "kiowa", ios_file: "Kiaowa", crew: "2", pax: "0", weapons: "Gun/Rockets", span: "10.7m", mtow: "2.5t", danger: "Mast-Mounted Sight (MMS) hazard, Tail rotor.", note: "Armed scout helicopter.", cutin: "Side clamshell windows.", pdf: "Kiowa.pdf" },
+            { name: "SA341 Gazelle", type: "rotary", file: "gazelle", ios_file: "Gazelle", crew: "2", weapons: "Missile/Gun", span: "10.5m", mtow: "1.8t", danger: "Fenestron arc.", note: "Observation.", pdf : "Gazelle.pdf" },
+            { name: "UH-60 Blackhawk", type: "rotary", file: "uh60", ios_file: "Uh60", crew: "4", pax: "11", span: "16.3m", mtow: "10.6t", danger: "Rotor arc.", note: "Spec Ops Utility.", pdf: "AQRC-A20-Sikorsky-S76-C-V1.pdf" },
+            { name: "USMC UH-1Y Venom", type: "rotary", file: "usmc_uh-1y_venom", ios_file: "USMC_UH-1Y_Venom", crew: "2", weapons: "Rockets", span: "14.8m", mtow: "8.3t", danger: "4-blade system.", note: "Marine utility.", pdf: "AQRC-A37-Bell-212-Final.pdf" },
+            { name: "V-22 Osprey", type: "rotary", file: "v-22_osprey", ios_file: "V-22_Osprey", crew: "4", pax: "24", span: "14m", mtow: "27.4t", danger: "Proprotor arc.", note: "VTOL capability.", pdf : "V22.pdf" },
+            { name: "MQ-9 Reaper", type: "drone", file: "mq9", ios_file: "MQ9", crew: "Unmanned", pax: "0", weapons: "Hellfire/GBU", span: "20.1m", mtow: "4.7t", danger: "Pusher Propeller arc.", note: "Armed surveillance.", cutin: "N/A - Unmanned." },
+            { name: "Watchkeeper WK450", type: "drone", file: "watchkeeper", ios_file: "Watchkeeper", crew: "Remote", pax: "0", span: "10.5m", mtow: "0.45t", danger: "Laser Radiation, Fuel (Petrol), Pitot heat.", note: "UK ISTAR UAV. Dual payload sensors.", batt: "Mid-fuselage access", pdf: "Watchkeeper.pdf" },
+            { name: "QinetiQ Banshee", type: "drone", file: "qinetiq_banshee_flight_military_drone", ios_file: "QinetiQ_Banshee_Flight_Military_Drone", crew: "Remote", pax: "0", weapons: "Target Payload", span: "2.49m", mtow: "0.09t", danger: "Can carry Chaff / Flares.", note: "Aerial target drone.", cutin: "N/A - Unmanned.", pdf : "Banshee.pdf" },
+            { name: "RQ-4 Global Hawk", type: "drone", file: "GlobalHawk", ios_file: "Global_Hawk", crew: "Remote", pax: "0", weapons: "None", span: "39.9m", mtow: "14.6t", danger: "Dorsal Intake, Voltage.", note: "High altitude ISR.", cutin: "Battery disconnect only." },
+            { name: "AIM-9M Sidewinder", type: "ordnance", file: "aim-9m__sidewinder", ios_file: "AIM-9M__Sidewinder", neq: "9.4 kg", danger: "Rocket Motor.", note: "Air-to-Air.", span: "0.63m"},
+            { name: "Hellfire Missile", type: "ordnance", file: "hellfire", ios_file: "Hellfire", neq: "8.0 kg", danger: "Laser tracking.", note: "Anti-armor.", span: "0.33m" },
+            { name: "JDAM GBU-31", type: "ordnance", file: "jdam", ios_file: "JDAM", neq: "428 kg", danger: "Extreme Blast.", note: "GPS guided.", span: "0.64m" },
+            { name: "Paveway IV", type: "ordnance", file: "Paveway", ios_file: "Paveway", neq: "225 kg", danger: "Precision Seekers.", note: "Laser/GPS guided.", span: "0.42m" },
+            { name: "Storm Shadow", type: "ordnance", file: "storm_shadow", ios_file: "Storm_Shadow", neq: "450 kg", danger: "Intake suction.", note: "Cruise missile.", span: "3m" },
+            { name: "Aermacchi MB-326", type: "military", file: "aermacchi_mb-326", ios_file: "Aermacchi_MB-326", pdf: "UAEA M.B.339NAT.pdf" },
+            { name: "AV-8B Harrier II", type: "military", file: "av-8b_harrier_ii", ios_file: "AV-8B_Harrier_II", pdf: "Harrier AV8 - Pt1.pdf" },
+            { name: "Fiat G.91", type: "military", file: "fiat_g91", ios_file: "Fiat_G91" },
+            { name: "Gulfstream G600", type: "civilian", file: "gulfstream_g600", ios_file: "Gulfstream_G600" },
+            { name: "Hawker Hunter", type: "military", file: "hunter", ios_file: "Hunter" },
+            { name: "Ikarus C42", type: "civilian", file: "ikarus_c42", ios_file: "Ikarus_c42" },
+            { name: "Mil Mi-17", type: "rotary", file: "mil_mi-17", ios_file: "Mil_Mi-17", pdf: "Mi-171.pdf" },
+            { name: "NH-90 (Ghosts Edition)", type: "rotary", file: "call_of_duty_ghosts_-_nh-90", ios_file: "Call_of_Duty_Ghosts_-_NH-90", pdf: "NH90 - Helicopter.pdf" },
+            { name: "PBY-5A Catalina", type: "military", file: "pby-5a_catalina_war_thunder", ios_file: "PBY-5A_Catalina_War_Thunder" },
+            { name: "Piaggio P.166", type: "civilian", file: "piaggio_p.166", ios_file: "Piaggio_P" },
+            { name: "Pilatus PC-24", type: "civilian", file: "pilatus_pc-24", ios_file: "Pilatus_PC-24" },
+            { name: "Piper PA-18 Super Cub", type: "civilian", file: "piper_pa-18_super_cub_philsca_edition", ios_file: "PIPER_PA-18_SUPER_CUB_PHILSCA_EDITION" },
+            { name: "SA340/341/342 Gazelle", type: "rotary", file: "sud-aviation_sa340341342_gazelle", ios_file: "Sud-Aviation_SA340341342_Gazelle" },
+            { name: "Seafire FR 47", type: "military", file: "seafire_fr_47_war_thunder", ios_file: "Seafire_FR_47_War_Thunder", pdf: "Seafire.pdf" },
+            { name: "Soko J-20 Kraguj", type: "military", file: "soko_j-20_kraguj", ios_file: "Soko_J-20_Kraguj" }
+        ];
 
-        function enterApp() {
-            document.getElementById('start-screen').style.opacity = '0';
-            setTimeout(() => document.getElementById('start-screen').style.visibility = 'hidden', 800);
-        }
-        function toggleDetails() { document.getElementById('details-panel').classList.toggle('active'); }
-
-        viewer.addEventListener('progress', () => { document.getElementById('loader-overlay').style.display = 'flex'; });
-        viewer.addEventListener('load', () => { document.getElementById('loader-overlay').style.display = 'none'; });
-
-        async function initializeApp() {
+        const modelData = rawData.sort((a, b) => a.name.localeCompare(b.name));
+        
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        let renderTask = null;
+        
+        async function openPdfModal() {
+            if (!activePdfFile) return;
+            const pdfPath = `PDF/${activePdfFile}`;
+            pdfModalTitle.textContent = `AQRC: ${currentAssetName}`;
+            pdfModal.classList.add('active');
+            pdfLoading.style.display = 'block';
             try {
-                // For local development, ensure the JSON is correctly provided or fetched
-                const response = await fetch('models.json');
-                modelData = await response.json();
-                
-                modelSelect.innerHTML = '';
-                const civGroup = document.createElement('optgroup'); civGroup.label = "CIVILIAN / ICAO ARFF";
-                const milGroup = document.createElement('optgroup'); milGroup.label = "MILITARY / TACTICAL";
-                const ordGroup = document.createElement('optgroup'); ordGroup.label = "MUNITIONS / ORDNANCE";
-                
-                modelData.forEach((m, index) => {
-                    const opt = document.createElement('option'); opt.value = index; opt.textContent = m.name;
-                    if (m.type === 'civilian') civGroup.appendChild(opt);
-                    else if (m.type === 'ordnance') ordGroup.appendChild(opt);
-                    else milGroup.appendChild(opt);
-                });
-
-                if (civGroup.children.length) modelSelect.appendChild(civGroup);
-                if (milGroup.children.length) modelSelect.appendChild(milGroup);
-                if (ordGroup.children.length) modelSelect.appendChild(ordGroup);
-                
-                updateAsset(0);
-            } catch (e) { console.error("Data Sync Failed", e); }
-        }
-
-        function updateAsset(index) {
-            const asset = modelData[index];
-            if (!asset) return;
-            
-            const container = document.getElementById('spec-container');
-            const classif = document.getElementById('asset-classification');
-            
-            viewer.src = `models/${asset.file}.glb`;
-            if (asset.usdz_file) viewer.setAttribute('ios-src', `models/${asset.usdz_file}.usdz`);
-            document.getElementById('asset-title').textContent = asset.name;
-
-            if (asset.type === 'ordnance') {
-                classif.textContent = "MUNITIONS HAZARD DATA"; 
-                classif.className = "spec-label status-mil";
-                container.innerHTML = `
-                    <div class="spec-item"><span class="spec-label">NEQ</span><span class="spec-value" style="color:#ff4d4d;">${asset.neq}</span></div>
-                    <div class="spec-item"><span class="spec-label">Hazard Div</span><span class="spec-value">${asset.hazard_div}</span></div>
-                    <div class="spec-item"><span class="spec-label">Total Wt</span><span class="spec-value">${asset.weight}</span></div>
-                    <div class="spec-item"><span class="spec-label">Length</span><span class="spec-value">${asset.length}</span></div>
-                    <div class="spec-item full-width"><span class="spec-label">Propellant</span><span class="spec-value">${asset.propellant}</span></div>
-                    <div class="spec-item full-width"><span class="spec-label">Danger Areas</span><span class="spec-value">${asset.danger_areas}</span></div>
-                    <div class="spec-item full-width"><span class="spec-label">Tactical Note</span><span class="spec-value hazard-box">${asset.description}</span></div>`;
-            } else if (asset.type === 'military') {
-                classif.textContent = "MILITARY ASSET"; 
-                classif.className = "spec-label status-mil";
-                container.innerHTML = `
-                    <div class="spec-item"><span class="spec-label">Crew</span><span class="spec-value">${asset.crew}</span></div>
-                    <div class="spec-item"><span class="spec-label">Base</span><span class="spec-value">${asset.base}</span></div>
-                    <div class="spec-item"><span class="spec-label">MTOW</span><span class="spec-value">${asset.weight}</span></div>
-                    <div class="spec-item"><span class="spec-label">Length</span><span class="spec-value">${asset.length || 'N/A'}</span></div>
-                    <div class="spec-item full-width"><span class="spec-label">Armament</span><span class="spec-value">${asset.weapons || 'None'}</span></div>
-                    <div class="spec-item full-width"><span class="spec-label">Danger Areas</span><span class="spec-value">${asset.danger_areas || 'Standard Engine Hazards'}</span></div>
-                    <div class="spec-item full-width"><span class="spec-label">Cutting Points</span><span class="spec-value">${asset.cutting_points || 'Consult Tech Manual'}</span></div>
-                    <div class="spec-item full-width"><span class="spec-label">Briefing</span><span class="spec-value hazard-box">${asset.description}</span></div>`;
-            } else {
-                classif.textContent = "ICAO ARFF DATA"; 
-                classif.className = "spec-label status-civ";
-                container.innerHTML = `
-                    <div class="spec-item"><span class="spec-label">ARFF Cat</span><span class="spec-value">${asset.arff_cat}</span></div>
-                    <div class="spec-item"><span class="spec-label">Max Pax</span><span class="spec-value">${asset.max_passengers}</span></div>
-                    <div class="spec-item"><span class="spec-label">Rescue Exits</span><span class="spec-value">${asset.exits}</span></div>
-                    <div class="spec-item"><span class="spec-label">Fuel</span><span class="spec-value">${asset.fuel}</span></div>
-                    <div class="spec-item full-width"><span class="spec-label">Danger Areas</span><span class="spec-value">${asset.danger_areas}</span></div>
-                    <div class="spec-item full-width"><span class="spec-label">Cutting Points</span><span class="spec-value">${asset.cutting_points}</span></div>
-                    <div class="spec-item full-width"><span class="spec-label">Batteries/Hazards</span><span class="spec-value">${asset.batteries}</span></div>
-                    <div class="spec-item full-width"><span class="spec-label">Egress Note</span><span class="spec-value hazard-box">${asset.description}</span></div>`;
+                const loadingTask = pdfjsLib.getDocument(pdfPath);
+                pdfDoc = await loadingTask.promise;
+                currentPage = 1;
+                currentScale = 1.5;
+                await renderPage(currentPage);
+                pdfLoading.style.display = 'none';
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                pdfLoading.textContent = 'Error loading PDF';
             }
         }
+        
+        async function renderPage(pageNum) {
+            if (!pdfDoc) return;
+            if (renderTask) renderTask.cancel();
+            const page = await pdfDoc.getPage(pageNum);
+            let viewport = page.getViewport({ scale: currentScale });
+            const rotation = page.rotate || 0;
+            viewport = page.getViewport({ scale: currentScale, rotation: rotation });
+            const context = pdfCanvas.getContext('2d');
+            pdfCanvas.height = viewport.height;
+            pdfCanvas.width = viewport.width;
+            context.clearRect(0, 0, pdfCanvas.width, pdfCanvas.height);
+            const renderContext = { canvasContext: context, viewport: viewport };
+            renderTask = page.render(renderContext);
+            try {
+                await renderTask.promise;
+                renderTask = null;
+            } catch (err) {
+                if (err.name !== 'RenderingCancelledException') console.error('Render error:', err);
+            }
+            pdfPageInfo.textContent = `${currentPage} / ${pdfDoc.numPages}`;
+        }
+        
+        function closePdfModal() {
+            pdfModal.classList.remove('active');
+            if (renderTask) { renderTask.cancel(); renderTask = null; }
+            pdfDoc = null; currentPage = 1; currentScale = 1.5;
+        }
+        
+        async function nextPage() { if (!pdfDoc || currentPage >= pdfDoc.numPages) return; currentPage++; await renderPage(currentPage); pdfScrollContainer.scrollTop = 0; }
+        async function previousPage() { if (!pdfDoc || currentPage <= 1) return; currentPage--; await renderPage(currentPage); pdfScrollContainer.scrollTop = 0; }
+        async function zoomIn() { if (currentScale >= MAX_SCALE) return; currentScale = Math.min(currentScale + 0.25, MAX_SCALE); await renderPage(currentPage); }
+        async function zoomOut() { if (currentScale <= MIN_SCALE) return; currentScale = Math.max(currentScale - 0.25, MIN_SCALE); await renderPage(currentPage); }
+        
+        function enterApp() {
+            document.getElementById('start-screen').style.opacity = '0';
+            setTimeout(() => document.getElementById('start-screen').style.display = 'none', 600);
+        }
+        
+        function toggleDetails() { document.getElementById('details-panel').classList.toggle('active'); }
+        
+        function filterByType(type) {
+            currentFilter = type;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase() === type || (type === 'all' && btn.textContent === 'All'));
+            });
+            populateSelect();
+            const first = modelData.find(m => type === 'all' || m.type === type);
+            if(first) updateAsset(modelData.indexOf(first));
+        }
+        
+        function populateSelect() {
+            const term = searchInput.value.toLowerCase();
+            modelSelect.innerHTML = '';
+            const groups = { civilian: "CIVILIAN", rotary: "ROTARY", military: "MILITARY", drone: "DRONE", ordnance: "ORDNANCE" };
+            Object.keys(groups).forEach(key => {
+                const group = document.createElement('optgroup');
+                group.label = groups[key];
+                modelData.filter(m => (m.type === key) && (currentFilter === 'all' || currentFilter === key) && m.name.toLowerCase().includes(term))
+                         .forEach(m => {
+                             const opt = document.createElement('option');
+                             opt.value = modelData.indexOf(m);
+                             opt.textContent = m.name;
+                             group.appendChild(opt);
+                         });
+                if(group.children.length) modelSelect.appendChild(group);
+            });
+        }
+        
+        function updateAsset(idx) {
+            const asset = modelData[idx];
+            if(!asset) return;
+            modelSelect.value = idx;
+            viewer.src = `models/${asset.file}.glb`;
+            viewer.iosSrc = `models/${asset.ios_file}.usdz`;
+            activePdfFile = asset.pdf || "";
+            currentAssetName = asset.name;
+            pdfBtn.style.display = activePdfFile ? "block" : "none";
+            const poiModels = ["Chinook", "Blackhawk", "Venom", "A-10 Thunderbolt"];
+            const isPoiEnabled = poiModels.some(n => asset.name.includes(n));
+            hotspotToggleBtn.style.display = isPoiEnabled ? "block" : "none";
+            hotspotsVisible = false;
+            document.querySelectorAll('.hotspot').forEach(h => h.classList.remove('visible'));
+            hotspotToggleBtn.textContent = "POI";
+            document.getElementById('asset-title').textContent = asset.name;
+            const container = document.getElementById('spec-container');
+            const classif = document.getElementById('asset-classification');
+            classif.textContent = asset.type === 'civilian' ? "ICAO ARFF PROTOCOL" : "TACTICAL ASSET DATA";
+            container.innerHTML = `
+                <div class="spec-item"><span class="spec-label">MTOW</span><span class="spec-value">${asset.mtow || 'N/A'}</span></div>
+                <div class="spec-item"><span class="spec-label">Span</span><span class="spec-value">${asset.span || 'N/A'}</span></div>
+                <div class="spec-item"><span class="spec-label">Crew/Pax</span><span class="spec-value">${asset.crew || 'N/A'} / ${asset.pax || 'N/A'}</span></div>
+                <div class="spec-item"><span class="spec-label">Asset Ref</span><span class="spec-value">${asset.batt || asset.weapons || asset.neq || 'N/A'}</span></div>
+                <div class="spec-item full-width"><span class="spec-label">Hazards</span><span class="spec-value">${asset.danger || 'N/A'}</span></div>
+                <div class="spec-item full-width"><span class="spec-label">Briefing</span><span class="spec-value hazard-box">${asset.note || 'No additional briefing notes.'}</span></div>
+            `;
+        }
+        
+        function toggleHotspots() {
+            hotspotsVisible = !hotspotsVisible;
+            const activeModel = modelData[modelSelect.value];
+            const isA10 = activeModel.name.includes("A-10");
+            const hotspots = document.querySelectorAll('.hotspot');
+            hotspots.forEach(h => {
+                const isPartOfA10 = h.classList.contains('group-a10');
+                const isPartOfRotary = h.classList.contains('group-rotary');
+                if (hotspotsVisible) {
+                    if (isA10 && isPartOfA10) h.classList.add('visible');
+                    else if (!isA10 && isPartOfRotary) h.classList.add('visible');
+                } else {
+                    h.classList.remove('visible');
+                }
+            });
+            hotspotToggleBtn.textContent = hotspotsVisible ? "Hide" : "POI";
+        }
+        
         modelSelect.addEventListener('change', (e) => updateAsset(e.target.value));
-        initializeApp();
+        searchInput.addEventListener('input', populateSelect);
+        
+        window.addEventListener('DOMContentLoaded', () => { 
+            populateSelect(); 
+            updateAsset(modelData.indexOf(modelData.find(m => m.type === 'civilian'))); 
+        });
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('AeroViewer Offline Ready'))
+                    .catch(err => console.log('SW Registration Failed', err));
+            });
+        }
+
+        // Tactical deployment data mapping based on DFR ATTP documentation
+        const tacticalDeployments = {
+            "A400M Atlas": {
+                "engine_fire": [
+                    [cite_start]{ type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV Rescue Side or Rear [cite: 77]" },
+                    [cite_start]{ type: "striker", position: "-25m 0m 10m", rotation: "0 -45deg 0", label: "Crash 2: Dominant Position [cite: 91]" },
+                    [cite_start]{ type: "striker", position: "-10m 0m -25m", rotation: "0 135deg 0", label: "Crash 3: Front of Engine Fire [cite: 102]" }
+                ],
+                "wheel_fire": [
+                    [cite_start]{ type: "mprv", position: "15m 0m 15m", rotation: "0 90deg 0", label: "Crash 1: MPRV Rescue Side [cite: 172]" },
+                    [cite_start]{ type: "striker", position: "-20m 0m 0m", rotation: "0 -90deg 0", label: "Crash 2: Dominant Cover [cite: 188]" },
+                    [cite_start]{ type: "striker", position: "20m 0m 5m", rotation: "0 90deg 0", label: "Crash 3: Opposite Undercarriage [cite: 196]" }
+                ],
+                "internal_fire": [
+                    [cite_start]{ type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV Rescue Side [cite: 271]" },
+                    [cite_start]{ type: "striker", position: "-20m 0m 10m", rotation: "0 -45deg 0", label: "Crash 2: Striker [cite: 285]" },
+                    [cite_start]{ type: "striker", position: "0m 0m 25m", rotation: "0 180deg 0", label: "Crash 3: Striker Rear Deployment [cite: 294]" }
+                ],
+                "external_fire": [
+                    [cite_start]{ type: "mprv", position: "15m 0m 20m", rotation: "0 45deg 0", label: "Crash 1: MPRV Rescue Side [cite: 367]" },
+                    [cite_start]{ type: "striker", position: "-25m 0m 10m", rotation: "0 -45deg 0", label: "Crash 2: Striker [cite: 384]" },
+                    [cite_start]{ type: "striker", position: "0m 0m 25m", rotation: "0 180deg 0", label: "Crash 3: Striker Rear Deployment [cite: 393]" }
+                ]
+            },
+            "Piper PA-18 Super Cub": { // Using PA-18 as proxy for PA-28 Cherokee data
+                "engine_fire": [
+                    [cite_start]{ type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV Nose [cite: 517]" }
+                ],
+                "wheel_fire": [
+                    [cite_start]{ type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV Nose [cite: 570]" }
+                ],
+                "internal_fire": [
+                    [cite_start]{ type: "mprv", position: "10m 0m -10m", rotation: "0 225deg 0", label: "Crash 1: MPRV Upwind [cite: 632]" }
+                ],
+                "external_fire": [
+                    [cite_start]{ type: "mprv", position: "0m 0m -10m", rotation: "0 180deg 0", label: "Crash 1: MPRV Nose [cite: 692]" }
+                ]
+            }
+        };
+
+        function renderTacticalScenario(scenarioId) {
+            document.querySelectorAll('.tactical-vehicle').forEach(el => el.remove());
+            
+            if (scenarioId === "none") return;
+            
+            const assetData = tacticalDeployments[currentAssetName];
+            if (!assetData || !assetData[scenarioId]) {
+                console.warn("No tactical data for current asset/scenario combination.");
+                return;
+            }
+
+            const deployments = assetData[scenarioId];
+            
+            deployments.forEach((vehicle, index) => {
+                const hotspot = document.createElement('button');
+                hotspot.className = 'hotspot tactical-vehicle visible';
+                hotspot.slot = `hotspot-tactical-${index}`;
+                hotspot.dataset.position = vehicle.position;
+                hotspot.dataset.normal = "0 1 0";
+                hotspot.style.width = "100px";
+                hotspot.style.height = "50px";
+                hotspot.style.background = "transparent";
+                hotspot.style.border = "none";
+                hotspot.style.boxShadow = "none";
+                
+                hotspot.innerHTML = `
+                    <model-viewer 
+                        src="models/${vehicle.type}.glb" 
+                        camera-controls="false" 
+                        interaction-prompt="none" 
+                        style="width: 100%; height: 100%; background: transparent;"
+                        orientation="${vehicle.rotation}">
+                    </model-viewer>
+                    <div class="hotspot-annotation" style="transform: translate(0, -40px); background: var(--raf-red); color: white;">
+                        ${vehicle.label}
+                    </div>
+                `;
+                
+                viewer.appendChild(hotspot);
+            });
+        }
+
+        scenarioSelect.addEventListener('change', (e) => renderTacticalScenario(e.target.value));
+        modelSelect.addEventListener('change', () => {
+            scenarioSelect.value = "none";
+            renderTacticalScenario("none");
+        });
     </script>
 </body>
 </html>
