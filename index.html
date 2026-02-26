@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Tactics Viewer - ICAO TACTICAL V1.1</title>
+    <title>TTPViewer - ICAO TACTICAL V1.1</title>
     <meta charset="utf-8">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -86,8 +86,8 @@
     <div id="start-screen">
         <div class="radar"></div>
         <div style="text-align:center;">
-            <h1 style="color:white; letter-spacing:8px; font-weight:200;">TTP VIEWER</h1>
-            <p style="color: var(--accent); font-size: 10px; letter-spacing: 2px; margin-bottom: 30px;">DFRP VR Team V1.1</p>
+            <h1 style="color:white; letter-spacing:8px; font-weight:200;">ATTP VIEWER</h1>
+            <p style="color: var(--accent); font-size: 10px; letter-spacing: 2px; margin-bottom: 30px;">DFRP VR Team</p>
             <button class="commence-btn" onclick="enterApp()">START VIEWER</button>
         </div>
     </div>
@@ -99,7 +99,7 @@
     
     <div id="pdf-modal">
         <div class="pdf-header">
-            <div class="pdf-title" id="pdf-modal-title">Aircraft Quick Reference Card</div>
+            <div class="pdf-title" id="pdf-modal-title">ATTP</div>
             <button class="pdf-close-btn" onclick="closePdfModal()">✕ CLOSE</button>
         </div>
         <div class="pdf-container">
@@ -188,13 +188,11 @@
         let currentAssetName = "";
         
         const rawData = [
-    
-            { name: "Chinook 1 x MPRV", type: "rotary", file: "chinook1mprv", ios_file: "Chinook1MPRV", pdf: "Chinook1" },
-            { name: "Chinook 2 x MPRV", type: "rotary", file: "chinook2mprv", ios_file: "Chinook2MPRV", pdf: "Chinook2" },
-            { name: "Piper PA-18 Super Cub", type: "civilian", file: "piper_pa-18_super_cub_philsca_edition", ios_file: "PIPER_PA-18_SUPER_CUB_PHILSCA_EDITION" },
-            { name: "SA340/341/342 Gazelle", type: "rotary", file: "sud-aviation_sa340341342_gazelle", ios_file: "Sud-Aviation_SA340341342_Gazelle" },
-            { name: "Seafire FR 47", type: "military", file: "seafire_fr_47_war_thunder", ios_file: "Seafire_FR_47_War_Thunder", pdf: "Seafire.pdf" },
-            { name: "Soko J-20 Kraguj", type: "military", file: "soko_j-20_kraguj", ios_file: "Soko_J-20_Kraguj" }
+           
+            { name: "Chinook 1 MPRV", type: "rotary", file: "chinook1mprv", ios_file: "Chinook1MPRV", crew: "4", span: "x", mtow: "x", danger: "Front rotor very low", pdf: "Chinook1.pdf" },
+            { name: "Chinook 2 MPRV", type: "rotary", file: "chinook2mprv", ios_file: "Chinook2MPRV", crew: "4", span: "x", mtow: "x", danger: "Front rotor very low", pdf: "Chinook2.pdf" },{ name: "EH101 Merlin MK2", type: "rotary", file: "merlin_mk2", ios_file: "Merlin_MK2", crew: "4", weapons: "Torpedos", span: "18.6m", mtow: "14.6t", danger: "3x Exhaust.", note: "ASW specialist.", pdf: "AQRC-A42-Merlin-Mk2-Final.pdf" },
+            { name: "MD 902 Explorer", type: "rotary", file: "md_helicopters_md-902_explorer", ios_file: "MD_Helicopters_MD-902_Explorer", crew: "1/2", span: "10.3m", mtow: "3t", danger: "NOTAR system.", note: "NOTAR safety system.", pdf: "AQRC-Explorer.pdf" },
+          
         ];
 
         const modelData = rawData.sort((a, b) => a.name.localeCompare(b.name));
@@ -204,8 +202,8 @@
         
         async function openPdfModal() {
             if (!activePdfFile) return;
-            const pdfPath = `TTP/${activePdfFile}`;
-            pdfModalTitle.textContent = `TTP: ${currentAssetName}`;
+            const pdfPath = `PDF/${activePdfFile}`;
+            pdfModalTitle.textContent = `AQRC: ${currentAssetName}`;
             pdfModal.classList.add('active');
             pdfLoading.style.display = 'block';
             try {
