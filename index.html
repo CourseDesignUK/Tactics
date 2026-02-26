@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Tactics Viewer - ICAO TACTICAL V1.2</title>
+    <title>Tactics Viewer - ICAO TACTICAL V1.1</title>
     <meta charset="utf-8">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -86,8 +86,8 @@
     <div id="start-screen">
         <div class="radar"></div>
         <div style="text-align:center;">
-            <h1 style="color:white; letter-spacing:8px; font-weight:200;">ARRF TACTICS VIEWER</h1>
-            <p style="color: var(--accent); font-size: 10px; letter-spacing: 2px; margin-bottom: 30px;">TTP REFERENCE SYSTEM V1.2</p>
+            <h1 style="color:white; letter-spacing:8px; font-weight:200;">TTP VIEWER</h1>
+            <p style="color: var(--accent); font-size: 10px; letter-spacing: 2px; margin-bottom: 30px;">DFRP VR Team V1.1</p>
             <button class="commence-btn" onclick="enterApp()">START VIEWER</button>
         </div>
     </div>
@@ -99,7 +99,7 @@
     
     <div id="pdf-modal">
         <div class="pdf-header">
-            <div class="pdf-title" id="pdf-modal-title">Tactical Training Procedure</div>
+            <div class="pdf-title" id="pdf-modal-title">Aircraft Quick Reference Card</div>
             <button class="pdf-close-btn" onclick="closePdfModal()">✕ CLOSE</button>
         </div>
         <div class="pdf-container">
@@ -133,9 +133,8 @@
             <input type="text" id="asset-search" placeholder="Search Database...">
             <div class="filter-row">
                 <button class="filter-btn active" onclick="filterByType('all')">All</button>
-                <button class="filter-btn" onclick="filterByType('ttp')">TTPs</button>
-                <button class="filter-btn" onclick="filterByType('military')">Military</button>
                 <button class="filter-btn" onclick="filterByType('civilian')">Civilian</button>
+                <button class="filter-btn" onclick="filterByType('military')">Military</button>
                 <button class="filter-btn" onclick="filterByType('rotary')">Rotary</button>
                 <button class="filter-btn" onclick="filterByType('drone')">Drone</button>
                 <button class="filter-btn" onclick="filterByType('ordnance')">Ordnance</button>
@@ -146,7 +145,7 @@
                     <select id="model-select"></select>
                 </div>
                 <button id="toggle-hotspots" class="toggle-btn" onclick="toggleHotspots()">POI</button>
-                <button id="pdf-btn" class="manual-btn" onclick="openPdfModal()">DOCS</button>
+                <button id="pdf-btn" class="manual-btn" onclick="openPdfModal()">AQRC</button>
                 <button class="factsheet-btn" onclick="toggleDetails()">Factsheet</button>
             </div>
         </div>
@@ -189,20 +188,12 @@
         let currentAssetName = "";
         
         const rawData = [
-            { name: "Chinook 1 x MPRV", type: "rotary", file: "chinook1mprv", ios_file: "Chinook1MPRV", note: "Integrated fire suppression procedures for T55-GA-714A engines.", danger: "Tandem rotor debris field, high heat signatures.", pdf: "Chinook1.pdf" },
-            { name: "Chinook 2 x MPRV", type: "rotary", file: "chinook2mprv", ios_file: "Chinook2MPRV", note: "Primary egress via cabin ramp and jettisonable windows.", danger: "Low forward rotor clearance, cargo shifting.", pdf: "Chinook2.pdf" },
-            { name: "TTP-01: Engine Fire", type: "ttp", file: "a10", ios_file: "A10", note: "Primary suppression at intake/exhaust interface.", danger: "Fuel spray, nacelle explosion.", pdf: "TTP-01_Engine_Fire.pdf" },
-            { name: "TTP-02: Cockpit Egress", type: "ttp", file: "a10", ios_file: "A10", note: "Canopy jettison controls usually port side.", danger: "Seat CAD/PAD activation.", pdf: "TTP-02_Egress.pdf" },
-            { name: "TTP-03: Composites", type: "ttp", file: "f35", ios_file: "F35", note: "Particulate containment procedures.", danger: "Toxic smoke, microscopic fibers.", pdf: "TTP-03_Composites.pdf" },
-            { name: "Airbus A220", type: "civilian", file: "a220", ios_file: "A220", arff_cat: "6", fuel: "21k L", crew: "2", pax: "160", span: "35.1m", mtow: "70.9t", doors: "4 Main Doors", danger: "Engine Intake (5m).", note: "Modern efficient narrow-body.", batt: "Aft of nose wheel (L)", pdf: "A220.pdf" },
-            { name: "Airbus A318", type: "civilian", file: "airbus_a318-122", ios_file: "Airbus_A318-122", arff_cat: "6", fuel: "24k L", crew: "2", pax: "132", span: "34.1m", mtow: "68t", doors: "4 Main, 2 Overwing", danger: "Engine Intake (5m), Exhaust (50m).", note: "Smallest member of the A320 family.", batt: "Aft of Nose Gear (L)", pdf: "A318.pdf" },
-            { name: "Airbus A320", type: "civilian", file: "airbus_a320", ios_file: "Airbus_A320", arff_cat: "6", fuel: "27k L", crew: "2", pax: "186", span: "35.8m", mtow: "78t", doors: "4 Main, 4 Overwing", danger: "Eng Intake (5m).", note: "Oxygen fwd of wing.", batt: "Lower Fwd Electronics Bay", pdf: "A320.pdf" },
-            { name: "Boeing 737-800", type: "civilian", file: "boeing_737-800", ios_file: "Boeing_737-800", arff_cat: "6", fuel: "26k L", crew: "2", pax: "189", span: "35.8m", mtow: "79t", doors: "4 Main, 4 Overwing", danger: "Intake (4m).", note: "APU exhaust at tail.", batt: "Electronics Bay Fwd of Wing", pdf: "B737.pdf" },
-            { name: "A-10 Thunderbolt", type: "military", file: "a10", ios_file: "A10", crew: "1", weapons: "30mm GAU-8", span: "17.5m", mtow: "22.7t", danger: "Rear Intake, Gun blast.", note: "Titanium armor.", pdf : "A10.pdf" },
-            { name: "C-130 Hercules", type: "military", file: "c130j", ios_file: "c130j", crew: "3", pax: "92", span: "40.4m", mtow: "70.3t", danger: "4x Propellers.", note: "Tactical airlifter.", pdf: "C130.pdf" },
-            { name: "F-35 Lightning 2", type: "military", file: "f35", ios_file: "F35", crew: "1", weapons: "Internal", span: "10.7m", mtow: "31.7t", danger: "Eng Heat (1000C).", note: "Stealth composite.", pdf: "F35.pdf" },
-            { name: "CH-47 Chinook", type: "rotary", file: "chinook-2", ios_file: "Chinook-2", crew: "4", pax: "55", span: "18.3m", mtow: "22.7t", danger: "Tandem Rotors.", note: "Front rotor low.", pdf: "Chinook.pdf" },  
-            { name: "UH-60 Blackhawk", type: "rotary", file: "uh60", ios_file: "Uh60", crew: "4", pax: "11", span: "16.3m", mtow: "10.6t", danger: "Rotor arc.", note: "Spec Ops Utility.", pdf: "AQRC-A20-Sikorsky-S76-C-V1.pdf" }
+    
+            { name: "Chinook 1 x MPRV", type: "rotary", file: "chinook1mprv", ios_file: "Chinook1MPRV", pdf: "Chinook1" },
+            { name: "Piper PA-18 Super Cub", type: "civilian", file: "piper_pa-18_super_cub_philsca_edition", ios_file: "PIPER_PA-18_SUPER_CUB_PHILSCA_EDITION" },
+            { name: "SA340/341/342 Gazelle", type: "rotary", file: "sud-aviation_sa340341342_gazelle", ios_file: "Sud-Aviation_SA340341342_Gazelle" },
+            { name: "Seafire FR 47", type: "military", file: "seafire_fr_47_war_thunder", ios_file: "Seafire_FR_47_War_Thunder", pdf: "Seafire.pdf" },
+            { name: "Soko J-20 Kraguj", type: "military", file: "soko_j-20_kraguj", ios_file: "Soko_J-20_Kraguj" }
         ];
 
         const modelData = rawData.sort((a, b) => a.name.localeCompare(b.name));
@@ -212,13 +203,8 @@
         
         async function openPdfModal() {
             if (!activePdfFile) return;
-            
-            let pdfPath = `PDF/${activePdfFile}`;
-            if (activePdfFile.startsWith("TTP-")) {
-                pdfPath = `https://raw.githubusercontent.com/CourseDesignUK/Tactics/main/TTP_/${activePdfFile}`;
-            }
-
-            pdfModalTitle.textContent = `DOC REF: ${currentAssetName}`;
+            const pdfPath = `TTP/${activePdfFile}`;
+            pdfModalTitle.textContent = `ATTP: ${currentAssetName}`;
             pdfModal.classList.add('active');
             pdfLoading.style.display = 'block';
             try {
@@ -287,7 +273,7 @@
         function populateSelect() {
             const term = searchInput.value.toLowerCase();
             modelSelect.innerHTML = '';
-            const groups = { ttp: "TTP PROCEDURES", military: "MILITARY", civilian: "CIVILIAN", rotary: "ROTARY", drone: "DRONE", ordnance: "ORDNANCE" };
+            const groups = { civilian: "CIVILIAN", rotary: "ROTARY", military: "MILITARY", drone: "DRONE", ordnance: "ORDNANCE" };
             Object.keys(groups).forEach(key => {
                 const group = document.createElement('optgroup');
                 group.label = groups[key];
@@ -320,7 +306,7 @@
             document.getElementById('asset-title').textContent = asset.name;
             const container = document.getElementById('spec-container');
             const classif = document.getElementById('asset-classification');
-            classif.textContent = asset.type === 'ttp' ? "TACTICAL TRAINING PROCEDURE" : "ASSET DATA";
+            classif.textContent = asset.type === 'civilian' ? "ICAO ARFF PROTOCOL" : "TACTICAL ASSET DATA";
             container.innerHTML = `
                 <div class="spec-item"><span class="spec-label">MTOW</span><span class="spec-value">${asset.mtow || 'N/A'}</span></div>
                 <div class="spec-item"><span class="spec-label">Span</span><span class="spec-value">${asset.span || 'N/A'}</span></div>
@@ -354,92 +340,15 @@
         
         window.addEventListener('DOMContentLoaded', () => { 
             populateSelect(); 
-            updateAsset(modelData.indexOf(modelData.find(m => m.type === 'ttp'))); 
+            updateAsset(modelData.indexOf(modelData.find(m => m.type === 'civilian'))); 
         });
-    </script>
-</body>
-</html>        canvas { display: block; margin: 20px auto; max-width: 100%; }
 
-        #loader-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13, 17, 23, 0.95); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; backdrop-filter: blur(10px); }
-        .load-bar-container { width: 240px; height: 4px; background: rgba(255,255,255,0.05); margin-top: 15px; overflow: hidden; border-radius: 10px; }
-        .load-bar-fill { height: 100%; width: 35%; background: var(--tactical-yellow); animation: loading-slide 1.2s infinite ease-in-out; }
-        @keyframes loading-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
-    </style>
-</head>
-<body>
-
-    <div id="start-screen">
-        <div class="radar"></div>
-        <button class="commence-btn" onclick="terminateSplash()">COMMENCE</button>
-    </div>
-
-    <div id="loader-overlay">
-        <div class="load-bar-container"><div class="load-bar-fill"></div></div>
-    </div>
-
-    <div id="main-ui">
-        <h2 style="text-align:center; color: var(--icao-gold);">TACTICAL TTP REPOSITORY</h2>
-        <div class="ttp-list">
-            <div class="ttp-item" onclick="loadPDF('INTERCEPT.pdf')">INTERCEPT PROCEDURES</div>
-            <div class="ttp-item" onclick="loadPDF('FORMATION.pdf')">FORMATION TACTICS</div>
-            <div class="ttp-item" onclick="loadPDF('RECON.pdf')">RECONNAISSANCE PROTOCOLS</div>
-        </div>
-    </div>
-
-    <div id="pdf-modal">
-        <button class="close-pdf" onclick="closePDF()">EXIT VIEWER</button>
-        <div id="pdf-render-container"></div>
-    </div>
-
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        const TTP_PATH = 'TTP/';
-
-        function terminateSplash() {
-            const screen = document.getElementById('start-screen');
-            screen.style.opacity = '0';
-            setTimeout(() => {
-                screen.style.display = 'none';
-                document.getElementById('main-ui').style.display = 'block';
-            }, 600);
-        }
-
-        async function loadPDF(filename) {
-            const loader = document.getElementById('loader-overlay');
-            const modal = document.getElementById('pdf-modal');
-            const container = document.getElementById('pdf-render-container');
-            
-            loader.style.display = 'flex';
-            container.innerHTML = '';
-            
-            try {
-                const fullPath = `${TTP_PATH}${filename}`;
-                const loadingTask = pdfjsLib.getDocument(fullPath);
-                const pdf = await loadingTask.promise;
-                
-                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                    const page = await pdf.getPage(pageNum);
-                    const viewport = page.getViewport({ scale: 1.5 });
-                    const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    
-                    await page.render({ canvasContext: context, viewport: viewport }).promise;
-                    container.appendChild(canvas);
-                }
-                
-                modal.style.display = 'block';
-            } catch (err) {
-                console.error("PDF LOAD ERROR:", err);
-                alert(`FAILED TO LOAD: ${TTP_PATH}${filename}`);
-            } finally {
-                loader.style.display = 'none';
-            }
-        }
-
-        function closePDF() {
-            document.getElementById('pdf-modal').style.display = 'none';
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('AeroViewer Offline Ready'))
+                    .catch(err => console.log('SW Registration Failed', err));
+            });
         }
     </script>
 </body>
