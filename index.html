@@ -1,61 +1,361 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>C17 Tactical Deployment</title>
+    <title>Tactics Viewer - ICAO TACTICAL V1.2</title>
+    <meta charset="utf-8">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
+    <meta name="theme-color" content="#0d1117">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
-        body { margin: 0; background: #121212; overflow: hidden; }
-        #labels { position: absolute; top: 10px; left: 10px; color: white; font-family: monospace; }
+        :root {
+            --app-bg: #0d1117; --raf-blue: #5d7a8c; --raf-red: #c21807;
+            --icao-gold: #d4af37; --accent: #63b3ed; --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --rotary-green: #48bb78; --tactical-yellow: #ffd700;
+        }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: var(--app-bg); font-family: 'Segoe UI', Roboto, sans-serif; touch-action: pan-x pan-y; }
+        
+        #pdf-modal { touch-action: auto !important; }
+        #pdf-modal * { touch-action: auto !important; }
+        
+        #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, #1a202c 0%, #0d1117 100%); z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.6s ease; }
+        .radar { position: relative; width: 280px; height: 280px; border: 2px solid rgba(99, 179, 237, 0.2); border-radius: 50%; margin-bottom: 20px;}
+        .radar::after { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(from -90deg, transparent 0deg, rgba(99, 179, 237, 0.4) 90deg, transparent 91deg); animation: sweep 4s linear infinite; }
+        @keyframes sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .commence-btn { background: transparent; color: white; border: 1px solid white; padding: 15px 45px; border-radius: 4px; letter-spacing: 4px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .commence-btn:hover { background: white; color: black; }
+        
+        #loader-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13, 17, 23, 0.95); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 2500; backdrop-filter: blur(10px); }
+        .load-bar-container { width: 240px; height: 4px; background: rgba(255,255,255,0.05); margin-top: 15px; overflow: hidden; border-radius: 10px; }
+        .load-bar-fill { height: 100%; width: 35%; background: var(--tactical-yellow); animation: loading-slide 1.2s infinite ease-in-out; }
+        @keyframes loading-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+        
+        #pdf-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.98); z-index: 3000; display: none; flex-direction: column; }
+        #pdf-modal.active { display: flex; }
+        .pdf-header { background: var(--app-bg); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); flex-wrap: wrap; gap: 10px; }
+        .pdf-title { color: white; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; flex: 1; min-width: 150px; }
+        .pdf-close-btn { background: var(--raf-red); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        .pdf-container { flex: 1; overflow: hidden; position: relative; background: #2a2a2a; touch-action: none; }
+        .pdf-scroll-container { width: 100%; height: 100%; overflow: auto; -webkit-overflow-scrolling: touch; }
+        .pdf-canvas-wrapper { display: inline-block; transform-origin: 0 0; transition: transform 0.1s ease-out; }
+        #pdf-canvas { display: block; margin: 0 auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .pdf-controls-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); padding: 10px 15px; border-radius: 30px; display: flex; gap: 15px; align-items: center; z-index: 10; }
+        .pdf-control-btn { background: var(--glass); border: 1px solid var(--glass-border); color: white; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .pdf-control-btn:active { background: var(--accent); }
+        .pdf-page-info { color: white; font-size: 12px; font-weight: 700; min-width: 60px; text-align: center; }
+        .pdf-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--tactical-yellow); font-size: 14px; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .app-overlay { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100; width: 95%; max-width: 600px; pointer-events: none; }
+        .control-panel { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); padding: 12px 18px; border-radius: 14px; pointer-events: auto; }
+        #asset-search { background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: white; width: 100%; padding: 12px; border-radius: 6px; font-size: 14px; outline: none; box-sizing: border-box; margin-bottom: 10px; }
+        .filter-row { display: flex; gap: 5px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+        .filter-btn { background: rgba(255,255,255,0.1); color: #ccc; border: none; padding: 6px 12px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer; white-space: nowrap; text-transform: uppercase; }
+        .filter-btn.active { background: var(--accent); color: white; }
+        
+        .selector-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .panel-label { font-size: 10px; color: var(--accent); text-transform: uppercase; font-weight: 800; }
+        
+        select { background: transparent; color: white; border: none; font-weight: bold; width: 100%; cursor: pointer; font-size: 16px; outline: none; }
+        select option, select optgroup { background-color: #1a202c; color: white; }
+        
+        .factsheet-btn { background: var(--raf-blue); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        .manual-btn { background: var(--icao-gold); color: #000; border: none; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; display: none; }
+        .toggle-btn { background: var(--rotary-green); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; text-transform: uppercase; display: none; }
+        .details-panel { position: absolute; top: 0; right: -100%; width: 100%; max-width: 500px; height: 100%; background: rgba(10, 15, 25, 0.98); backdrop-filter: blur(30px); z-index: 300; transition: right 0.4s cubic-bezier(0.19, 1, 0.22, 1); color: white; overflow-y: auto; }
+        .details-panel.active { right: 0; }
+        .details-inner { padding: 60px 40px; }
+        .spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }
+        .spec-item { border-top: 1px solid var(--glass-border); padding: 15px 0; }
+        .full-width { grid-column: span 2; }
+        .spec-label { font-size: 11px; color: var(--accent); text-transform: uppercase; font-weight: 800; }
+        .spec-value { display: block; font-size: 18px; margin-top: 6px; font-family: 'Courier New', monospace; }
+        .hazard-box { border-left: 4px solid var(--raf-red); padding: 15px; background: rgba(194, 24, 7, 0.15); font-size: 15px; color: #ffcccc; }
+        model-viewer { width: 100vw; height: 100vh; background-color: #1a202c; }
+        #ar-button { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--raf-red); color: white; border: none; padding: 16px 32px; border-radius: 50px; font-weight: 700; cursor: pointer; z-index: 50; text-transform: uppercase; font-size: 12px; }
+        .hotspot { background: var(--tactical-yellow); border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5); width: 14px; height: 14px; cursor: pointer; transition: opacity 0.3s; display: none; }
+        .hotspot.visible { display: block; }
+        .hotspot-annotation { background: #fff; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #000; font-size: 12px; font-weight: bold; padding: 4px 8px; position: absolute; transform: translate(10px, -20px); white-space: nowrap; pointer-events: none; }
     </style>
 </head>
 <body>
-    <div id="labels">
-        FORMATION: 1x C17 (CENTER) | 2x MPRV (RESCUE/SUPPORT)
+    <div id="start-screen">
+        <div class="radar"></div>
+        <div style="text-align:center;">
+            <h1 style="color:white; letter-spacing:8px; font-weight:200;">TACTICS VIEWER</h1>
+            <p style="color: var(--accent); font-size: 10px; letter-spacing: 2px; margin-bottom: 30px;">TTP REFERENCE SYSTEM V1.2</p>
+            <button class="commence-btn" onclick="enterApp()">START VIEWER</button>
+        </div>
     </div>
+    
+    <div id="loader-overlay">
+        <div class="panel-label" style="color: var(--tactical-yellow);">Processing Asset...</div>
+        <div class="load-bar-container"><div class="load-bar-fill"></div></div>
+    </div>
+    
+    <div id="pdf-modal">
+        <div class="pdf-header">
+            <div class="pdf-title" id="pdf-modal-title">Tactical Training Procedure</div>
+            <button class="pdf-close-btn" onclick="closePdfModal()">✕ CLOSE</button>
+        </div>
+        <div class="pdf-container">
+            <div class="pdf-loading" id="pdf-loading">Loading PDF...</div>
+            <div class="pdf-scroll-container" id="pdf-scroll-container">
+                <div class="pdf-canvas-wrapper" id="pdf-canvas-wrapper">
+                    <canvas id="pdf-canvas"></canvas>
+                </div>
+            </div>
+            <div class="pdf-controls-bar">
+                <button class="pdf-control-btn" onclick="previousPage()">◀</button>
+                <div class="pdf-page-info" id="pdf-page-info">1 / 1</div>
+                <button class="pdf-control-btn" onclick="nextPage()">▶</button>
+                <button class="pdf-control-btn" onclick="zoomOut()">−</button>
+                <button class="pdf-control-btn" onclick="zoomIn()">+</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="details-panel" class="details-panel">
+        <div class="details-inner">
+            <div id="asset-classification" class="spec-label">Syncing...</div>
+            <h2 id="asset-title" style="margin: 15px 0; font-size: 32px; text-transform: uppercase;">Asset</h2>
+            <div id="spec-container" class="spec-grid"></div>
+            <button onclick="toggleDetails()" style="margin-top: 50px; background: white; border: none; color: black; padding: 18px; width: 100%; cursor: pointer; font-weight: 800; text-transform: uppercase;">Close window</button>
+        </div>
+    </div>
+    
+    <div class="app-overlay">
+        <div class="control-panel">
+            <input type="text" id="asset-search" placeholder="Search Database...">
+            <div class="filter-row">
+                <button class="filter-btn active" onclick="filterByType('all')">All</button>
+                <button class="filter-btn" onclick="filterByType('ttp')">TTPs</button>
+                <button class="filter-btn" onclick="filterByType('military')">Military</button>
+                <button class="filter-btn" onclick="filterByType('civilian')">Civilian</button>
+                <button class="filter-btn" onclick="filterByType('rotary')">Rotary</button>
+                <button class="filter-btn" onclick="filterByType('drone')">Drone</button>
+                <button class="filter-btn" onclick="filterByType('ordnance')">Ordnance</button>
+            </div>
+            <div class="selector-row">
+                <div style="flex-grow: 1; overflow: hidden; padding-right: 10px;">
+                    <span class="panel-label">Primary Asset</span>
+                    <select id="model-select"></select>
+                </div>
+                <button id="toggle-hotspots" class="toggle-btn" onclick="toggleHotspots()">POI</button>
+                <button id="pdf-btn" class="manual-btn" onclick="openPdfModal()">DOCS</button>
+                <button class="factsheet-btn" onclick="toggleDetails()">Factsheet</button>
+            </div>
+        </div>
+    </div>
+    
+    <model-viewer id="main-viewer" ar ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="2">
+        <button class="hotspot group-rotary" slot="hotspot-1" data-position="-15.07m 13.01m -36.07m" data-normal="-0.87m 0.40m -0.27m"><div class="hotspot-annotation">Battery Bay</div></button>
+        <button class="hotspot group-rotary" slot="hotspot-2" data-position="-17.96m 9.45m 9.23m" data-normal="-0.82m -0.56m -0.01m"><div class="hotspot-annotation">Flares / Chaff</div></button>
+        <button class="hotspot group-rotary" slot="hotspot-3" data-position="11.56m 16.92m 36.00m" data-normal="0.99m 0.05m -0.00m"><div class="hotspot-annotation">Ramp Control Panel</div></button>
+        <button class="hotspot group-a10" slot="hotspot-8" data-position="-5.989m 1.695m 7.950m" data-normal="0m 0m 1m"><div class="hotspot-annotation">Main Gun (GAU-8)</div></button>
+        <button class="hotspot group-a10" slot="hotspot-9" data-position="-5.603m 2.485m -3.850m" data-normal="1m 0m 0m"><div class="hotspot-annotation">APU Exhaust</div></button>
+        <button class="hotspot group-a10" slot="hotspot-10" data-position="-5.442m 2.198m 5.058m" data-normal="1m 0m 0m"><div class="hotspot-annotation">Battery Access</div></button>
+        <button slot="ar-button" id="ar-button">View in AR</button>
+    </model-viewer>
+    
+    <script>
+        const viewer = document.querySelector('#main-viewer');
+        const modelSelect = document.querySelector('#model-select');
+        const searchInput = document.querySelector('#asset-search');
+        const loader = document.getElementById('loader-overlay');
+        const pdfBtn = document.getElementById('pdf-btn');
+        const hotspotToggleBtn = document.getElementById('toggle-hotspots');
+        const pdfModal = document.getElementById('pdf-modal');
+        const pdfCanvas = document.getElementById('pdf-canvas');
+        const pdfCanvasWrapper = document.getElementById('pdf-canvas-wrapper');
+        const pdfScrollContainer = document.getElementById('pdf-scroll-container');
+        const pdfLoading = document.getElementById('pdf-loading');
+        const pdfPageInfo = document.getElementById('pdf-page-info');
+        const pdfModalTitle = document.getElementById('pdf-modal-title');
+        
+        let pdfDoc = null;
+        let currentPage = 1;
+        let currentScale = 1.5;
+        const MIN_SCALE = 0.5;
+        const MAX_SCALE = 4.0;
+        
+        let hotspotsVisible = false;
+        let currentFilter = 'all';
+        let activePdfFile = "";
+        let currentAssetName = "";
+        
+        const rawData = [
+            { name: "TTP-04: Chinook Engine Fire", type: "ttp", file: "chinook1mprv", ios_file: "Chinook1MPRV", note: "Integrated fire suppression procedures for T55-GA-714A engines.", danger: "Tandem rotor debris field, high heat signatures.", pdf: "TTP-04_Chinook_Fire.pdf" },
+            { name: "TTP-05: Chinook Emergency Egress", type: "ttp", file: "chinook2mprv", ios_file: "Chinook2MPRV", note: "Primary egress via cabin ramp and jettisonable windows.", danger: "Low forward rotor clearance, cargo shifting.", pdf: "TTP-05_Chinook_Egress.pdf" },
+            { name: "TTP-01: Engine Fire", type: "ttp", file: "a10", ios_file: "A10", note: "Primary suppression at intake/exhaust interface.", danger: "Fuel spray, nacelle explosion.", pdf: "TTP-01_Engine_Fire.pdf" },
+            { name: "TTP-02: Cockpit Egress", type: "ttp", file: "a10", ios_file: "A10", note: "Canopy jettison controls usually port side.", danger: "Seat CAD/PAD activation.", pdf: "TTP-02_Egress.pdf" },
+            { name: "TTP-03: Composites", type: "ttp", file: "f35", ios_file: "F35", note: "Particulate containment procedures.", danger: "Toxic smoke, microscopic fibers.", pdf: "TTP-03_Composites.pdf" },
+            { name: "Airbus A220", type: "civilian", file: "a220", ios_file: "A220", arff_cat: "6", fuel: "21k L", crew: "2", pax: "160", span: "35.1m", mtow: "70.9t", doors: "4 Main Doors", danger: "Engine Intake (5m).", note: "Modern efficient narrow-body.", batt: "Aft of nose wheel (L)", pdf: "A220.pdf" },
+            { name: "Airbus A318", type: "civilian", file: "airbus_a318-122", ios_file: "Airbus_A318-122", arff_cat: "6", fuel: "24k L", crew: "2", pax: "132", span: "34.1m", mtow: "68t", doors: "4 Main, 2 Overwing", danger: "Engine Intake (5m), Exhaust (50m).", note: "Smallest member of the A320 family.", batt: "Aft of Nose Gear (L)", pdf: "A318.pdf" },
+            { name: "Airbus A320", type: "civilian", file: "airbus_a320", ios_file: "Airbus_A320", arff_cat: "6", fuel: "27k L", crew: "2", pax: "186", span: "35.8m", mtow: "78t", doors: "4 Main, 4 Overwing", danger: "Eng Intake (5m).", note: "Oxygen fwd of wing.", batt: "Lower Fwd Electronics Bay", pdf: "A320.pdf" },
+            { name: "Boeing 737-800", type: "civilian", file: "boeing_737-800", ios_file: "Boeing_737-800", arff_cat: "6", fuel: "26k L", crew: "2", pax: "189", span: "35.8m", mtow: "79t", doors: "4 Main, 4 Overwing", danger: "Intake (4m).", note: "APU exhaust at tail.", batt: "Electronics Bay Fwd of Wing", pdf: "B737.pdf" },
+            { name: "A-10 Thunderbolt", type: "military", file: "a10", ios_file: "A10", crew: "1", weapons: "30mm GAU-8", span: "17.5m", mtow: "22.7t", danger: "Rear Intake, Gun blast.", note: "Titanium armor.", pdf : "A10.pdf" },
+            { name: "C-130 Hercules", type: "military", file: "c130j", ios_file: "c130j", crew: "3", pax: "92", span: "40.4m", mtow: "70.3t", danger: "4x Propellers.", note: "Tactical airlifter.", pdf: "C130.pdf" },
+            { name: "F-35 Lightning 2", type: "military", file: "f35", ios_file: "F35", crew: "1", weapons: "Internal", span: "10.7m", mtow: "31.7t", danger: "Eng Heat (1000C).", note: "Stealth composite.", pdf: "F35.pdf" },
+            { name: "CH-47 Chinook", type: "rotary", file: "chinook-2", ios_file: "Chinook-2", crew: "4", pax: "55", span: "18.3m", mtow: "22.7t", danger: "Tandem Rotors.", note: "Front rotor low.", pdf: "Chinook.pdf" },  
+            { name: "UH-60 Blackhawk", type: "rotary", file: "uh60", ios_file: "Uh60", crew: "4", pax: "11", span: "16.3m", mtow: "10.6t", danger: "Rotor arc.", note: "Spec Ops Utility.", pdf: "AQRC-A20-Sikorsky-S76-C-V1.pdf" }
+        ];
 
-    <script type="module">
-        import * as THREE from 'https://cdn.skypack.dev/three@0.150.0';
-        import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.150.0/examples/jsm/loaders/GLTFLoader.js';
+        const modelData = rawData.sort((a, b) => a.name.localeCompare(b.name));
+        
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        let renderTask = null;
+        
+        async function openPdfModal() {
+            if (!activePdfFile) return;
+            
+            let pdfPath = `PDF/${activePdfFile}`;
+            if (activePdfFile.startsWith("TTP-")) {
+                pdfPath = `https://raw.githubusercontent.com/CourseDesignUK/Tactics/main/TTP_/${activePdfFile}`;
+            }
 
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // Lighting
-        const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-        sun.position.set(50, 50, 50);
-        scene.add(ambient, sun);
-
-        const loader = new GLTFLoader();
-
-        // 1. C17 Globemaster (Central)
-        loader.load('models/c17_globemaster_iii.glb', (gltf) => {
-            scene.add(gltf.scene);
-        });
-
-        // 2. MPRV (Crash 1 - Rescue Side)
-        loader.load('models/mprv.glb', (gltf) => {
-            gltf.scene.position.set(-25, 0, 15); // Port side offset
-            scene.add(gltf.scene);
-        });
-
-        // 3. MPRV (Secondary Support)
-        loader.load('models/mprv.glb', (gltf) => {
-            gltf.scene.position.set(25, 0, 40); // Starboard/Rear support
-            scene.add(gltf.scene);
-        });
-
-        camera.position.set(0, 60, 100);
-        camera.lookAt(0, 0, 0);
-
-        function animate() {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera);
+            pdfModalTitle.textContent = `DOC REF: ${currentAssetName}`;
+            pdfModal.classList.add('active');
+            pdfLoading.style.display = 'block';
+            try {
+                const loadingTask = pdfjsLib.getDocument(pdfPath);
+                pdfDoc = await loadingTask.promise;
+                currentPage = 1;
+                currentScale = 1.5;
+                await renderPage(currentPage);
+                pdfLoading.style.display = 'none';
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                pdfLoading.textContent = 'Error loading PDF';
+            }
         }
-        animate();
+        
+        async function renderPage(pageNum) {
+            if (!pdfDoc) return;
+            if (renderTask) renderTask.cancel();
+            const page = await pdfDoc.getPage(pageNum);
+            let viewport = page.getViewport({ scale: currentScale });
+            const rotation = page.rotate || 0;
+            viewport = page.getViewport({ scale: currentScale, rotation: rotation });
+            const context = pdfCanvas.getContext('2d');
+            pdfCanvas.height = viewport.height;
+            pdfCanvas.width = viewport.width;
+            context.clearRect(0, 0, pdfCanvas.width, pdfCanvas.height);
+            const renderContext = { canvasContext: context, viewport: viewport };
+            renderTask = page.render(renderContext);
+            try {
+                await renderTask.promise;
+                renderTask = null;
+            } catch (err) {
+                if (err.name !== 'RenderingCancelledException') console.error('Render error:', err);
+            }
+            pdfPageInfo.textContent = `${currentPage} / ${pdfDoc.numPages}`;
+        }
+        
+        function closePdfModal() {
+            pdfModal.classList.remove('active');
+            if (renderTask) { renderTask.cancel(); renderTask = null; }
+            pdfDoc = null; currentPage = 1; currentScale = 1.5;
+        }
+        
+        async function nextPage() { if (!pdfDoc || currentPage >= pdfDoc.numPages) return; currentPage++; await renderPage(currentPage); pdfScrollContainer.scrollTop = 0; }
+        async function previousPage() { if (!pdfDoc || currentPage <= 1) return; currentPage--; await renderPage(currentPage); pdfScrollContainer.scrollTop = 0; }
+        async function zoomIn() { if (currentScale >= MAX_SCALE) return; currentScale = Math.min(currentScale + 0.25, MAX_SCALE); await renderPage(currentPage); }
+        async function zoomOut() { if (currentScale <= MIN_SCALE) return; currentScale = Math.max(currentScale - 0.25, MIN_SCALE); await renderPage(currentPage); }
+        
+        function enterApp() {
+            document.getElementById('start-screen').style.opacity = '0';
+            setTimeout(() => document.getElementById('start-screen').style.display = 'none', 600);
+        }
+        
+        function toggleDetails() { document.getElementById('details-panel').classList.toggle('active'); }
+        
+        function filterByType(type) {
+            currentFilter = type;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase() === type || (type === 'all' && btn.textContent === 'All'));
+            });
+            populateSelect();
+            const first = modelData.find(m => type === 'all' || m.type === type);
+            if(first) updateAsset(modelData.indexOf(first));
+        }
+        
+        function populateSelect() {
+            const term = searchInput.value.toLowerCase();
+            modelSelect.innerHTML = '';
+            const groups = { ttp: "TTP PROCEDURES", military: "MILITARY", civilian: "CIVILIAN", rotary: "ROTARY", drone: "DRONE", ordnance: "ORDNANCE" };
+            Object.keys(groups).forEach(key => {
+                const group = document.createElement('optgroup');
+                group.label = groups[key];
+                modelData.filter(m => (m.type === key) && (currentFilter === 'all' || currentFilter === key) && m.name.toLowerCase().includes(term))
+                         .forEach(m => {
+                             const opt = document.createElement('option');
+                             opt.value = modelData.indexOf(m);
+                             opt.textContent = m.name;
+                             group.appendChild(opt);
+                         });
+                if(group.children.length) modelSelect.appendChild(group);
+            });
+        }
+        
+        function updateAsset(idx) {
+            const asset = modelData[idx];
+            if(!asset) return;
+            modelSelect.value = idx;
+            viewer.src = `models/${asset.file}.glb`;
+            viewer.iosSrc = `models/${asset.ios_file}.usdz`;
+            activePdfFile = asset.pdf || "";
+            currentAssetName = asset.name;
+            pdfBtn.style.display = activePdfFile ? "block" : "none";
+            const poiModels = ["Chinook", "Blackhawk", "Venom", "A-10 Thunderbolt"];
+            const isPoiEnabled = poiModels.some(n => asset.name.includes(n));
+            hotspotToggleBtn.style.display = isPoiEnabled ? "block" : "none";
+            hotspotsVisible = false;
+            document.querySelectorAll('.hotspot').forEach(h => h.classList.remove('visible'));
+            hotspotToggleBtn.textContent = "POI";
+            document.getElementById('asset-title').textContent = asset.name;
+            const container = document.getElementById('spec-container');
+            const classif = document.getElementById('asset-classification');
+            classif.textContent = asset.type === 'ttp' ? "TACTICAL TRAINING PROCEDURE" : "ASSET DATA";
+            container.innerHTML = `
+                <div class="spec-item"><span class="spec-label">MTOW</span><span class="spec-value">${asset.mtow || 'N/A'}</span></div>
+                <div class="spec-item"><span class="spec-label">Span</span><span class="spec-value">${asset.span || 'N/A'}</span></div>
+                <div class="spec-item"><span class="spec-label">Crew/Pax</span><span class="spec-value">${asset.crew || 'N/A'} / ${asset.pax || 'N/A'}</span></div>
+                <div class="spec-item"><span class="spec-label">Asset Ref</span><span class="spec-value">${asset.batt || asset.weapons || asset.neq || 'N/A'}</span></div>
+                <div class="spec-item full-width"><span class="spec-label">Hazards</span><span class="spec-value">${asset.danger || 'N/A'}</span></div>
+                <div class="spec-item full-width"><span class="spec-label">Briefing</span><span class="spec-value hazard-box">${asset.note || 'No additional briefing notes.'}</span></div>
+            `;
+        }
+        
+        function toggleHotspots() {
+            hotspotsVisible = !hotspotsVisible;
+            const activeModel = modelData[modelSelect.value];
+            const isA10 = activeModel.name.includes("A-10");
+            const hotspots = document.querySelectorAll('.hotspot');
+            hotspots.forEach(h => {
+                const isPartOfA10 = h.classList.contains('group-a10');
+                const isPartOfRotary = h.classList.contains('group-rotary');
+                if (hotspotsVisible) {
+                    if (isA10 && isPartOfA10) h.classList.add('visible');
+                    else if (!isA10 && isPartOfRotary) h.classList.add('visible');
+                } else {
+                    h.classList.remove('visible');
+                }
+            });
+            hotspotToggleBtn.textContent = hotspotsVisible ? "Hide" : "POI";
+        }
+        
+        modelSelect.addEventListener('change', (e) => updateAsset(e.target.value));
+        searchInput.addEventListener('input', populateSelect);
+        
+        window.addEventListener('DOMContentLoaded', () => { 
+            populateSelect(); 
+            updateAsset(modelData.indexOf(modelData.find(m => m.type === 'ttp'))); 
+        });
     </script>
 </body>
 </html>
