@@ -202,8 +202,8 @@
         
         async function openPdfModal() {
             if (!activePdfFile) return;
-            const pdfPath = `PDF/${activePdfFile}`;
-            pdfModalTitle.textContent = `AQRC: ${currentAssetName}`;
+            const pdfPath = `TTP/${activePdfFile}`;
+            pdfModalTitle.textContent = `ATTP: ${currentAssetName}`;
             pdfModal.classList.add('active');
             pdfLoading.style.display = 'block';
             try {
